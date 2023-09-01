@@ -1,0 +1,15 @@
+[build-system]
+build-backend = "hatchling.build"
+requires = ["hatchling>=1.8.0"]
+
+[project]
+name = "scCompare"
+description = "Compare 2 single-cell RNAseq datasets"
+license = { text = "MIT" }
+requires-python = ">=3.8"
+authors = [
+    {name = "Dan Wilkinson", email = "dwilkinson@bluerocktx.com"},
+    {name = "Elizabeth Tallman", email = "epereira@bluerocktx.com"},
+    {name = "Mishal Ashraf", email = "mashraf@bluerocktx.com"},
+    {name = "Ben Burnett", email = "bburnett@bluerocktx.com"}
+]
