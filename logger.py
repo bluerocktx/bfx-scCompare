@@ -1,7 +1,8 @@
 from collections import defaultdict
 
+
 class InternalLogger:
-    _instance=None
+    _instance = None
 
     def __new__(cls):
         if cls._instance is None:
@@ -9,7 +10,7 @@ class InternalLogger:
             cls._instance.log = defaultdict(dict)
             cls._instance.warnings = []
         return cls._instance
-    
+
     def write_log(self, nested_keys, value):
         current_dict = self.log
         for key in nested_keys[:-1]:
@@ -20,5 +21,5 @@ class InternalLogger:
         self.warnings.append(warning)
 
     def output_log(self):
-        
+
         return dict(self.log)
