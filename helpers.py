@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections import Counter
-from typing import Union
 
 import anndata
 import matplotlib.pyplot as plt
@@ -280,7 +279,7 @@ def rename_adata_obs_values(
 
 def calc_frequencies(
     adata: anndata.AnnData, key: str, return_as: str = "dict"
-) -> Union[dict, pd.DataFrame]:
+) -> dict | pd.DataFrame:
     """Calculate frequencies of items in adata.obs[key].
 
     Args:
@@ -380,6 +379,8 @@ def derive_statistical_cutoff(adata: anndata.AnnData, n_mads: float = 3):
 
     Args:
         adata: Mapping adata object
+        n_mads: The number of median absolute deviations away from the median to
+            define the cutoff
     Returns:
         Statistical cutoff
     """
@@ -484,8 +485,8 @@ def generate_bulk_sig(
 def derive_statistical_group_cutoff(
     adata_map: anndata.AnnData,
     cluster_key: str = "leiden",
-    n_mad_floor: float = 5,
-    n_mad: float = None,
+    n_mad_floor: float | None = 5,
+    n_mad: float | None = None,
 ) -> dict[str, float]:
     """Derive the statistical cutoff for each applied group in the mapping dataset.
 
