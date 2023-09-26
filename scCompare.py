@@ -1,84 +1,110 @@
-import os
 import argparse
-import scanpy as sc
-# import helpers
-# from . import helpers
-# from munge import generate_mapping_adata_noUMAP
-from helpers import (generate_bulk_sig, derive_statistical_group_cutoff, assign_clusters_to_cells, derive_statistical_cutoff, 
-assign_class_to_cells, calc_frac_misclassified_cells, calc_frac_unmapped_cells, 
-rename_adata_obs_values, get_marker_genes_per_cluster, calc_frequencies, get_gene_presence_in_cluster,
-calc_assigned_cluster_fracs, calc_simple_match_similarity, calc_silhouette_score, _reformat_adata_for_export, 
-generate_mapping_adata_noUMAP)
-import numpy as np
-import pandas as pd
-from scipy import stats
-from sklearn.metrics import r2_score
-import matplotlib.pyplot as plt
-import seaborn as sns
-from kneed import KneeLocator
+import os
 from collections import Counter
 from warnings import warn
 
+import numpy as np
+import pandas as pd
+import scanpy as sc
+from sklearn.metrics import r2_score
+
 import plots
+
+from helpers import (
+    _reformat_adata_for_export,
+    assign_class_to_cells,
+    assign_clusters_to_cells,
+    calc_assigned_cluster_fracs,
+    calc_frac_misclassified_cells,
+    calc_frac_unmapped_cells,
+    calc_frequencies,
+    calc_silhouette_score,
+    calc_simple_match_similarity,
+    derive_statistical_group_cutoff,
+    generate_bulk_sig,
+    get_gene_presence_in_cluster,
+    get_marker_genes_per_cluster,
+)
 from logger import InternalLogger
+
 
 def qc_adata(adata, cluster_key):
 
     run_params = InternalLogger()
 
     if cluster_key not in adata.obs:
-        error_text = f'''The cluster key `{cluster_key}` was not found in `obs`. cluster_key needs to be
+        error_text = f"""The cluster key `{cluster_key}` was not found in `obs`. cluster_key needs to be
         a column in obs that defines the cluster for each cell.
-        '''
+        """
         raise KeyError(error_text)
 
     if cluster_key not in adata.uns:
-        warning_text = f'''{cluster_key} not found in `uns`. Metadata about the clustering in {cluster_key} 
-        can not be saved.'''
+        warning_text = f"""{cluster_key} not found in `uns`. Metadata about the clustering in {cluster_key}
+        can not be saved."""
         warn(warning_text)
         run_params.write_warning(warning_text)
 
-def qc_adata_map(adata, cluster_key, color_map='RdYlBu_r'):
+
+def qc_adata_map(adata, cluster_key, color_map="RdYlBu_r"):
 
     qc_adata(adata, cluster_key)
 
-    if 'highly_variable' not in adata.var:
-        error_text = '''`highly_variable` not found in adata_map.var. `scanpy.pp.highly_variable_genes` needs
-        to be run on this object before using scCompare.'''
+    if "highly_variable" not in adata.var:
+        error_text = (
+            "`highly_variable` not found in adata_map.var. "
+            "`scanpy.pp.highly_variable_genes` needs to be run on this object before "
+            "using scCompare."
+        )
         raise KeyError(error_text)
 
-    if f'{cluster_key}_colors' not in adata.uns:
-        sc.pl.umap(adata, color=[cluster_key],color_map = color_map,use_raw = False,show=True)# need this to generate leiden_colors
+    if f"{cluster_key}_colors" not in adata.uns:
+        sc.pl.umap(
+            adata, color=[cluster_key], color_map=color_map, use_raw=False, show=True
+        )  # need this to generate leiden_colors
 
-    adata.uns['ass_cluster_colors'] = adata.uns[f'{cluster_key}_colors']
+    adata.uns["ass_cluster_colors"] = adata.uns[f"{cluster_key}_colors"]
 
     return adata
+
 
 def qc_adata_test(adata, cluster_key):
 
     qc_adata(adata, cluster_key)
-    
-    adata.obs['control_vs_experimental'] = 'testing'
+
+    adata.obs["control_vs_experimental"] = "testing"
 
     return adata
 
 
-def sc_compare(adata_test, adata_map, outdir='./scCompare_output', map_cluster_key='leiden', test_cluster_key='leiden', 
-               n_mad_floor=5, n_mad=0, color_map='RdYlBu_r', make_plots=True):
-    '''Run the scCompare pipeline
-    
-    :params: adata_test: test dataset to compare to the mapping dataset
-    :params: adata_map: mapping dataset that the test dataset will be mapped onto
-    :params: outdir: path to output directory
-    :params: map_cluster_key: adata.obs column name containing cluster IDs for the mapping dataset
-    :params: test_cluster_key: adata.obs column name containing cluster IDs for the test dataset
-    :params: n_mad_floor: lowest MAD to be used before it is automatically calculated
-    :params: n_mad: Number of MADs to use for cutoff calculation
-    :params: color_map: Color map to use for plots
-    :params: make_plots: Make the plots?
+def sc_compare(
+    adata_test,
+    adata_map,
+    outdir="./scCompare_output",
+    map_cluster_key="leiden",
+    test_cluster_key="leiden",
+    n_mad_floor=5,
+    n_mad=0,
+    color_map="RdYlBu_r",
+    make_plots=True,
+):
+    """Run the scCompare pipeline
 
-    :returns: adata_test: adata_test object with additional annotations provided by scCompare pipeline
-    '''
+    Args:
+        adata_test: test dataset to compare to the mapping dataset
+        adata_map: mapping dataset that the test dataset will be mapped onto
+        outdir: path to output directory
+        map_cluster_key: adata.obs column name containing cluster IDs for the mapping
+            dataset
+        test_cluster_key: adata.obs column name containing cluster IDs for the test
+            dataset
+        n_mad_floor: lowest MAD to be used before it is automatically calculated
+        n_mad: Number of MADs to use for cutoff calculation
+        color_map: Color map to use for plots
+        make_plots: Make the plots?
+
+    Returns:
+        adata_test object with additional annotations provided by scCompare pipeline
+    """
 
     # Accommodate reading from CLI
     if type(adata_test) is str:
@@ -93,125 +119,131 @@ def sc_compare(adata_test, adata_map, outdir='./scCompare_output', map_cluster_k
     print("adata objects pass QC!")
 
     # Make plot output directory
-    plot_outdir = os.path.join(outdir, 'plots/')
+    plot_outdir = os.path.join(outdir, "plots/")
     if not os.path.exists(plot_outdir):
         os.makedirs(plot_outdir, exist_ok=True)
 
-    #TODO: Do I need this in order to keep adata_map intact?
+    # TODO: Do I need this in order to keep adata_map intact?
     adata_map = adata_map.copy()
 
     run_params = InternalLogger()
-    run_params.write_log(['call_local_variables'], locals())
+    run_params.write_log(["call_local_variables"], locals())
 
-    sc.set_figure_params(scanpy=True, dpi=200, dpi_save=250, frameon=True, vector_friendly=False, fontsize=14, figsize=None, color_map=None, format='pdf', facecolor=None, transparent=True)
+    sc.set_figure_params(
+        scanpy=True,
+        dpi=200,
+        dpi_save=250,
+        frameon=True,
+        vector_friendly=False,
+        fontsize=14,
+        figsize=None,
+        color_map=None,
+        format="pdf",
+        facecolor=None,
+        transparent=True,
+    )
 
-    # sc.pl.umap(adata_map, color=[map_cluster_key],color_map = color_map,use_raw = False,show=True)# need this to generate leiden_colors
-    # adata_map.uns['ass_cluster_colors'] = adata_map.uns[f'{map_cluster_key}_colors']
-
-    print('Generating bulk signatures...', end="")
+    print("Generating bulk signatures...", end="")
     bulk_sig = generate_bulk_sig(adata_map, cluster_key=map_cluster_key)
     print("Done!")
-    run_params.write_log(['bulk_sig'], bulk_sig)
+    run_params.write_log(["bulk_sig"], bulk_sig)
 
     print("Assigning clusters to mapping cells...", end="")
-    adata_map = assign_clusters_to_cells(adata_map, bulk_sig=bulk_sig, subset_unique=True)
+    adata_map = assign_clusters_to_cells(
+        adata_map, bulk_sig=bulk_sig, subset_unique=True
+    )
     print("Done!")
 
     print("Deriving statistical cutoff...", end="")
-    stat_group_cutoff, canon_label = derive_statistical_group_cutoff(adata_map, cluster_key=map_cluster_key, n_mad_floor=n_mad_floor, n_mad=n_mad)
+    stat_group_cutoff, canon_label = derive_statistical_group_cutoff(
+        adata_map, cluster_key=map_cluster_key, n_mad_floor=n_mad_floor, n_mad=n_mad
+    )
     print("Done!")
-    run_params.write_log(['stat_group_cutoff'], stat_group_cutoff)
+    run_params.write_log(["stat_group_cutoff"], stat_group_cutoff)
 
     print("Assigning class to mapping cells...", end="")
     adata_map = assign_class_to_cells(adata_map, stat_group_cutoff=stat_group_cutoff)
     print("Done!")
 
-    ## PLOTS AND METRICS FOR MAPPING DATASET
+    # PLOTS AND METRICS FOR MAPPING DATASET
 
     print("Calculating mapping metrics...", end="")
     frac_misclass_cells = calc_frac_misclassified_cells(adata_map, key1=map_cluster_key)
-    run_params.write_log(['adata_map_fraction_misclassified_cells'], 
-                        frac_misclass_cells)
+    run_params.write_log(
+        ["adata_map_fraction_misclassified_cells"], frac_misclass_cells
+    )
 
     frac_unmapped_cells = calc_frac_unmapped_cells(adata_map)
-    run_params.write_log(['adata_map_fraction_unmapped_cells'], 
-                        frac_unmapped_cells)
+    run_params.write_log(["adata_map_fraction_unmapped_cells"], frac_unmapped_cells)
     print("Done!")
 
     if make_plots:
         print("Mapping correlation plot...")
-        thisplot = plots.plot_mapping_correlation(bulk_sig, save=os.path.join(plot_outdir, 'mapping_correlation.png'))
-        run_params.write_log(['plots', 'mapping_correlation'], thisplot)
+        thisplot = plots.plot_mapping_correlation(
+            bulk_sig, save=os.path.join(plot_outdir, "mapping_correlation.png")
+        )
+        run_params.write_log(["plots", "mapping_correlation"], thisplot)
 
-        # print("Confusion matrix from mapping data onto itself...")
-        # thisplot = plots.plot_confusion_matrix(adata_map, bulk_sig, save=os.path.join(plot_outdir, 'mapping_confustion_matrix.png'))
-        # run_params.write_log(['plots', 'mapping_confusion_matrix'], thisplot)
+    freqs = Counter(adata_map.obs["canon_label_ass"])
+    map_freqs = pd.DataFrame(freqs, index=[0]) / len(adata_map.obs)
 
+    sc.tl.rank_genes_groups(adata_map, "canon_label_ass", use_raw=False)
+    sc.tl.filter_rank_genes_groups(
+        adata_map,
+        key=None,
+        groupby="canon_label_ass",
+        use_raw=False,
+        key_added="rank_genes_groups_filtered",
+        min_in_group_fraction=0.1,
+        min_fold_change=2,
+        max_out_group_fraction=0.9,
+    )
 
-    freqs = Counter(adata_map.obs['canon_label_ass'])
-    map_freqs = pd.DataFrame(freqs, index=[0])/len(adata_map.obs)
-
-    sc.tl.rank_genes_groups(adata_map, 'canon_label_ass',use_raw=False)
-    sc.tl.filter_rank_genes_groups(adata_map, key=None, groupby='canon_label_ass', use_raw=False,key_added='rank_genes_groups_filtered', min_in_group_fraction=0.1, min_fold_change=2, max_out_group_fraction=0.9)
-
-    # df_genes = pd.DataFrame(adata_map.uns['rank_genes_groups_filtered']['names'])
-
-    ## METRICS FOR MAPPING DATA
+    # METRICS FOR MAPPING DATA
     marker_genes_per_cluster_df = get_marker_genes_per_cluster(adata_map)
-    run_params.write_log(['marker_genes_per_cluster_df'], marker_genes_per_cluster_df)
+    run_params.write_log(["marker_genes_per_cluster_df"], marker_genes_per_cluster_df)
 
     bin_genes_df_map = get_gene_presence_in_cluster(adata_map)
-    run_params.write_log(['bin_genes_df_map'], bin_genes_df_map)
+    run_params.write_log(["bin_genes_df_map"], bin_genes_df_map)
 
+    colordict = {
+        "mDA Neuron": "#8c564b",
+        "Off-Target Neuronal Mix": "#2ca02c",
+        "Transitioning SOX2(+) Neuronal Progenitor": "#9467bd",
+        "SOX2(+) Neuronal Progenitor": "#d62728",
+        "unmapped": "#e377c2",
+        "CRABP1(+) Neuronal Off-Target": "#1f77b4",
+        "Cycling Neuronal Progenitor": "#ff7f0e",
+    }
+    run_params.write_log(["colordict"], colordict)
 
-    ## Block 14
-
-    # sc.pl.umap(adata_map, color=['leiden','canon_label_ass'],color_map = 'RdYlBu_r',use_raw = False,wspace=0.25, show=False)
-
-    ## Block 15
-
-    ## Block 16
-
-    colordict ={'mDA Neuron':'#8c564b','Off-Target Neuronal Mix':'#2ca02c','Transitioning SOX2(+) Neuronal Progenitor':'#9467bd',
-                'SOX2(+) Neuronal Progenitor':'#d62728','unmapped':'#e377c2','CRABP1(+) Neuronal Off-Target':'#1f77b4',
-                'Cycling Neuronal Progenitor':'#ff7f0e'}
-    run_params.write_log(['colordict'], colordict)
-
-    ## Block 17
-    ## Main workflow
-
-    # adata_test.obs['control_vs_experimental'] = 'testing'
+    # Main workflow
 
     adata_test = assign_clusters_to_cells(adata_test, bulk_sig)
-    # adata_test.uns['ass_cluster_colors'] = adata_map.uns['leiden_colors']
-    adata_test.uns['ass_cluster_colors'] = adata_map.uns[f'{test_cluster_key}_colors']
+    adata_test.uns["ass_cluster_colors"] = adata_map.uns[f"{test_cluster_key}_colors"]
     adata_test = assign_class_to_cells(adata_test, stat_group_cutoff)
-    # adata_test.obs['canon_label_ass'] = rename_adata_obs_values(adata_test, 'canon_label_ass', canon_label)
-
-    # sc.pl.umap(adata_test, color=['ass_pearson','canon_label_ass'],color_map = 'RdYlBu_r',use_raw = False,wspace=0.25,vmin = min(stat_group_cutoff.values()),vmax=adata_map.obs['ass_pearson'].max(),save='test_labelled.png')
 
     print("Calculating cluster frequencies...", end="")
-    ass_clust_freqs = calc_frequencies(adata_test, 'canon_label_ass', return_as='df')
-    run_params.write_log(['assigned_cluster_frequencies'], ass_clust_freqs)
-    # print(f'ass_clust_freqs: {ass_clust_freqs}')
+    ass_clust_freqs = calc_frequencies(adata_test, "canon_label_ass", return_as="df")
+    run_params.write_log(["assigned_cluster_frequencies"], ass_clust_freqs)
 
-    leiden_clust_freqs = calc_frequencies(adata_map, 'leiden', return_as='df')
-    run_params.write_log(['cluster_frequencies'], leiden_clust_freqs)
-    # print(f'leiden_clust_freqs: {leiden_clust_freqs}')
+    leiden_clust_freqs = calc_frequencies(adata_map, "leiden", return_as="df")
+    run_params.write_log(["cluster_frequencies"], leiden_clust_freqs)
     print("Done!")
 
-    fraction_mapped_cells = 1-np.sum(adata_test.obs['canon_label_ass'] == 'unmapped')/len(adata_test.obs)
-    run_params.write_log(['fraction_mapped_cells'], fraction_mapped_cells)
+    fraction_mapped_cells = 1 - np.sum(
+        adata_test.obs["canon_label_ass"] == "unmapped"
+    ) / len(adata_test.obs)
+    run_params.write_log(["fraction_mapped_cells"], fraction_mapped_cells)
 
     ass_clust_freqs.index = [1]
-    df_fracs = pd.concat((map_freqs,ass_clust_freqs)).fillna(0).T.sort_values(by=0)
-    r2 = r2_score(df_fracs[0].values,df_fracs[1].values)
+    df_fracs = pd.concat((map_freqs, ass_clust_freqs)).fillna(0).T.sort_values(by=0)
+    r2 = r2_score(df_fracs[0].values, df_fracs[1].values)
 
-    ## START CHUNK
-    # This removes cells classified to a class that has only 1 cell classified as it. This is because scanpy.rank_genes_groups
-    # will throw an error if only one class 
+    # START CHUNK
+    # This removes cells classified to a class that has only 1 cell classified as it.
+    # This is because scanpy.rank_genes_groups will throw an error if only one class
 
-    # print(freqs)
     fkeys = list(freqs.keys())
     problem_cluster = []
     for i in range(len(fkeys)):
@@ -219,59 +251,73 @@ def sc_compare(adata_test, adata_map, outdir='./scCompare_output', map_cluster_k
             problem_cluster.append(fkeys[i])
     # problem_cluster
     if len(problem_cluster) > 0:
-        adata_test = adata_test[adata_test.obs['canon_label_ass'].values != problem_cluster[0],:]
+        adata_test = adata_test[
+            adata_test.obs["canon_label_ass"].values != problem_cluster[0], :
+        ]
 
-    ## END CHUNK
+    # END CHUNK
 
-    print('fraction mapped cells = '+str(fraction_mapped_cells))#adata_msk.obs['ass_pearson'].min()))
-    run_params.write_log(['fraction_mapped_calls'], fraction_mapped_cells)
-    print('r2 score = ' + str(r2))
-    run_params.write_log(['r2_score'], r2)
+    print(
+        "fraction mapped cells = " + str(fraction_mapped_cells)
+    )  # adata_msk.obs['ass_pearson'].min()))
+    run_params.write_log(["fraction_mapped_calls"], fraction_mapped_cells)
+    print("r2 score = " + str(r2))
+    run_params.write_log(["r2_score"], r2)
 
-    sc.tl.rank_genes_groups(adata_test, 'canon_label_ass',use_raw=False)
-    sc.tl.filter_rank_genes_groups(adata_test, key=None, groupby='canon_label_ass', use_raw=False,key_added='rank_genes_groups_filtered', min_in_group_fraction=0.1, min_fold_change=2, max_out_group_fraction=0.9)
-    df_genes = pd.DataFrame(adata_test.uns['rank_genes_groups_filtered']['names'])
+    sc.tl.rank_genes_groups(adata_test, "canon_label_ass", use_raw=False)
+    sc.tl.filter_rank_genes_groups(
+        adata_test,
+        key=None,
+        groupby="canon_label_ass",
+        use_raw=False,
+        key_added="rank_genes_groups_filtered",
+        min_in_group_fraction=0.1,
+        min_fold_change=2,
+        max_out_group_fraction=0.9,
+    )
+    df_genes = pd.DataFrame(adata_test.uns["rank_genes_groups_filtered"]["names"])
 
-    # cluster_genes_for_bin = pd.DataFrame(adata_test.uns['rank_genes_groups_filtered']['names'])
-
-    # bin_genes_df_test = get_gene_presence_in_cluster(cluster_genes_for_bin)
     bin_genes_df_test = get_gene_presence_in_cluster(adata_test)
-    run_params.write_log(['adata_test_gene_presence_in_cluster'], bin_genes_df_test)
+    run_params.write_log(["adata_test_gene_presence_in_cluster"], bin_genes_df_test)
 
     # Block 18
 
     ass_clust_fracts = calc_assigned_cluster_fracs(adata_test, adata_map)
-    run_params.write_log(['assigned_cluster_fractions'], ass_clust_fracts)
+    run_params.write_log(["assigned_cluster_fractions"], ass_clust_fracts)
 
     # Block 19
 
-    match_similarity_res = calc_simple_match_similarity(bin_genes_df_map, bin_genes_df_test)
-    run_params.write_log(['simple_match_similarity'], match_similarity_res)
+    match_similarity_res = calc_simple_match_similarity(
+        bin_genes_df_map, bin_genes_df_test
+    )
+    run_params.write_log(["simple_match_similarity"], match_similarity_res)
 
     # Block 20
 
-    combined_cluster_metrics = pd.concat((ass_clust_fracts, match_similarity_res), axis=1)
-    run_params.write_log(['combined_cluster_metrics'], combined_cluster_metrics)
+    combined_cluster_metrics = pd.concat(
+        (ass_clust_fracts, match_similarity_res), axis=1
+    )
+    run_params.write_log(["combined_cluster_metrics"], combined_cluster_metrics)
 
     # Block 21
     mapping_frac_mapped = 1 - calc_frac_unmapped_cells(adata_map)
-    df_frac_mapped_compare = pd.DataFrame([mapping_frac_mapped,fraction_mapped_cells],
-                            index=['Map','Test'],
-                            columns=['Fraction of Cells Mapped'])
-    run_params.write_log(['df_frac_mapped_compare'], df_frac_mapped_compare)
+    df_frac_mapped_compare = pd.DataFrame(
+        [mapping_frac_mapped, fraction_mapped_cells],
+        index=["Map", "Test"],
+        columns=["Fraction of Cells Mapped"],
+    )
+    run_params.write_log(["df_frac_mapped_compare"], df_frac_mapped_compare)
 
     # Block 22
-    df_sil_score_compare = pd.DataFrame([
-            calc_silhouette_score(adata_test),
-            calc_silhouette_score(adata_map)
-        ],
-        index=['Map', 'Test'],
-        columns=['Silhouette Score']
-        )
-    run_params.write_log(['silhouette_score_comparison'], df_sil_score_compare)
+    df_sil_score_compare = pd.DataFrame(
+        [calc_silhouette_score(adata_test), calc_silhouette_score(adata_map)],
+        index=["Map", "Test"],
+        columns=["Silhouette Score"],
+    )
+    run_params.write_log(["silhouette_score_comparison"], df_sil_score_compare)
 
     ##########
-    ## PLOTS
+    # PLOTS
     ##########
 
     if make_plots:
@@ -279,111 +325,159 @@ def sc_compare(adata_test, adata_map, outdir='./scCompare_output', map_cluster_k
         n_plots = 6
 
         # Block 6
-        i=1
+        i = 1
         # print(f"Generating plot {i}/8...", end='\r')
         print("Clusters and batch plot...")
-        thisplot = plots.plot_clusters_and_batch(adata_map, save=os.path.join(plot_outdir, 'clusters_and_mapping_batches.png'))
-        run_params.write_log(['plots', 'clusters_and_batch'], thisplot)
-
+        thisplot = plots.plot_clusters_and_batch(
+            adata_map,
+            save=os.path.join(plot_outdir, "clusters_and_mapping_batches.png"),
+        )
+        run_params.write_log(["plots", "clusters_and_batch"], thisplot)
 
         # Block 9
-        i+=1
+        i += 1
         # print(f"Generating plot {i}/8...", end='\r')
         print("Clusters and assignments UMAP...")
-        thisplot = plots.plot_cluster_and_assignments_umap(adata_map, save=os.path.join(plot_outdir, 'mapping_clusters_and_assignments_umap.png'))
-        run_params.write_log(['plots', 'clusters_and_assignments_umap'], thisplot)
+        thisplot = plots.plot_cluster_and_assignments_umap(
+            adata_map,
+            save=os.path.join(plot_outdir, "mapping_clusters_and_assignments_umap.png"),
+        )
+        run_params.write_log(["plots", "clusters_and_assignments_umap"], thisplot)
 
-        i+=1
+        i += 1
         # print(f"Generating plot {i}/8...", end='\r')
         print("Bulk signature heatmap...")
-        thisplot=plots.plot_bulk_sig_heatmap(bulk_sig, save=os.path.join(plot_outdir, 'bulk_sig_heatmap.png'))
-        run_params.write_log(['plots', 'bulk_sig_heatmap'], thisplot)
+        thisplot = plots.plot_bulk_sig_heatmap(
+            bulk_sig, save=os.path.join(plot_outdir, "bulk_sig_heatmap.png")
+        )
+        run_params.write_log(["plots", "bulk_sig_heatmap"], thisplot)
 
         # Block 10
-        i+=1
+        i += 1
         # print(f"Generating plot {i}/8...", end='\r')
         print("Assigned Pearson violin...")
-        thisplot = plots.plot_ass_pearson_violin(adata_map, save=os.path.join(plot_outdir, 'ass_pearson_violin.png'))
-        run_params.write_log(['plots', 'assigned_pearson_violin'], thisplot)
+        thisplot = plots.plot_ass_pearson_violin(
+            adata_map, save=os.path.join(plot_outdir, "ass_pearson_violin.png")
+        )
+        run_params.write_log(["plots", "assigned_pearson_violin"], thisplot)
 
         # Block 14
-        i+=1
+        i += 1
         # print(f"Generating plot {i}/8...", end='\r')
-        print('Assigned labels UMAP plot...')
-        thisplot = plots.plot_canon_assigned_labels_umap(adata_map, save=os.path.join(plot_outdir, 'canon_label_assignments_umap.png'))
-        run_params.write_log(['plots', 'canon_assigned_labels'], thisplot)
+        print("Assigned labels UMAP plot...")
+        thisplot = plots.plot_canon_assigned_labels_umap(
+            adata_map,
+            save=os.path.join(plot_outdir, "canon_label_assignments_umap.png"),
+        )
+        run_params.write_log(["plots", "canon_assigned_labels"], thisplot)
 
         # Block 17
-        i+=1
+        i += 1
         # print(f"Generating plot {i}/8...", end='\r')
         print("Map vs testing Pearson violin plot...")
-        thisplot = plots.plot_map_vs_test_pearson_violin(adata_test, adata_map, save=os.path.join(plot_outdir, 'map_vs_test_pearson_violin.png'))
-        run_params.write_log(['plots', 'map_vs_test_pearson_violin'], thisplot)
+        thisplot = plots.plot_map_vs_test_pearson_violin(
+            adata_test,
+            adata_map,
+            save=os.path.join(plot_outdir, "map_vs_test_pearson_violin.png"),
+        )
+        run_params.write_log(["plots", "map_vs_test_pearson_violin"], thisplot)
 
-        i+=1
+        i += 1
         # print(f"Generating plot {i}/8...", end='\r')
         print("Map vs test cluster fractions....")
-        plots.plot_map_vs_test_cluster_fractions(adata_test, adata_map, save=os.path.join(plot_outdir, 'map_vs_test_cluster_fractions.png'))
-        run_params.write_log(['plots', 'map_vs_test_cluster_fractions'], thisplot)
+        plots.plot_map_vs_test_cluster_fractions(
+            adata_test,
+            adata_map,
+            save=os.path.join(plot_outdir, "map_vs_test_cluster_fractions.png"),
+        )
+        run_params.write_log(["plots", "map_vs_test_cluster_fractions"], thisplot)
 
         print("Done generating plots!")
 
     print("Writing logs...", end="")
     adata_map = _reformat_adata_for_export(adata_map)
-    run_params.write_log(['adata_map'], adata_map)
+    run_params.write_log(["adata_map"], adata_map)
     print("Done!")
 
-    adata_test.uns['scCompare'] = run_params.output_log()
+    adata_test.uns["scCompare"] = run_params.output_log()
     adata_test = _reformat_adata_for_export(adata_test)
     print("scCompare Complete!")
 
     return adata_test
 
+
 def _parse_arguments():
 
     parser = argparse.ArgumentParser(
-                    prog='scCompare',
-                    description='Compare 2 single-cell RNAseq datasets',
-                    epilog='Link to github')
+        prog="scCompare",
+        description="Compare 2 single-cell RNAseq datasets",
+        epilog="Link to github",
+    )
 
-    parser.add_argument('test_data', help='Path to h5ad file as test dataset')
-    parser.add_argument('map_data', help='Path to h5ad file as map dataset')
-    parser.add_argument('--outdir', help="Path to output directory", default="./scCompare_output")
-    parser.add_argument('--map_cluster_key', help='adata.obs column name containing cluster IDs for mapping dataset', 
-                        default='leiden')
-    parser.add_argument('--test_cluster_key', help='adata.obs column name containing cluster IDs for test dataset', 
-                        default='leiden')
-    parser.add_argument('--n_mad_floor', help='Lowest MAD to be used before it is automatically calculated', 
-                        default=5, type=int)
-    parser.add_argument('--n_mad', help='Number of MADs to use for cutoff calculation', default=None, type=int)
-    parser.add_argument('--color_map', help='Color map to use for plots', default='RdYlBu_r')
-    parser.add_argument('--make_plots', help='Make the plots?', default=True, type=bool)
+    parser.add_argument("test_data", help="Path to h5ad file as test dataset")
+    parser.add_argument("map_data", help="Path to h5ad file as map dataset")
+    parser.add_argument(
+        "--outdir", help="Path to output directory", default="./scCompare_output"
+    )
+    parser.add_argument(
+        "--map_cluster_key",
+        help="adata.obs column name containing cluster IDs for mapping dataset",
+        default="leiden",
+    )
+    parser.add_argument(
+        "--test_cluster_key",
+        help="adata.obs column name containing cluster IDs for test dataset",
+        default="leiden",
+    )
+    parser.add_argument(
+        "--n_mad_floor",
+        help="Lowest MAD to be used before it is automatically calculated",
+        default=5,
+        type=int,
+    )
+    parser.add_argument(
+        "--n_mad",
+        help="Number of MADs to use for cutoff calculation",
+        default=None,
+        type=int,
+    )
+    parser.add_argument(
+        "--color_map", help="Color map to use for plots", default="RdYlBu_r"
+    )
+    parser.add_argument("--make_plots", help="Make the plots?", default=True, type=bool)
 
     args = parser.parse_args()
 
     return args
 
-def write_scCompare_adata(adata, outpath='./scCompare_output/adata_out.h5ad'):
+
+def write_scCompare_adata(adata, outpath="./scCompare_output/adata_out.h5ad"):
     """Helper to write scCompare adata object to disk
-    
+
     :params: adata: adata object that has run scCompare
     """
 
     out = _reformat_adata_for_export(adata)
     out.write_h5ad(outpath)
-    
-if __name__ == '__main__':
+
+
+if __name__ == "__main__":
 
     args = _parse_arguments()
-    adata_out = sc_compare(adata_test=args.test_data, adata_map=args.map_data,
-                           outdir=args.outdir, map_cluster_key=args.map_cluster_key, test_cluster_key=args.test_cluster_key, 
-                           n_mad_floor=args.n_mad_floor, n_mad=args.n_mad, color_map=args.color_map, 
-                           make_plots=args.make_plots)
+    adata_out = sc_compare(
+        adata_test=args.test_data,
+        adata_map=args.map_data,
+        outdir=args.outdir,
+        map_cluster_key=args.map_cluster_key,
+        test_cluster_key=args.test_cluster_key,
+        n_mad_floor=args.n_mad_floor,
+        n_mad=args.n_mad,
+        color_map=args.color_map,
+        make_plots=args.make_plots,
+    )
 
-    # adata_out.obs.replace(np.nan, 'nan', inplace=True)
-    # adata_out['scCompare']['adata_map'] = _reformat_adata_for_export(adata_out['scCompare']['adata_map'])
     adata_out = _reformat_adata_for_export(adata_out)
 
-    print('Writing adata object...', end="")
+    print("Writing adata object...", end="")
     adata_out.write(os.path.join(args.outdir, "adata_out.h5ad"))
     print("Done!")
