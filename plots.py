@@ -1,25 +1,31 @@
+from __future__ import annotations
+
 from collections import Counter
+from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scanpy as sc
 import seaborn as sns
+from anndata import AnnData
+from matplotlib.axes import Axes
+from matplotlib.markers import MarkerStyle
+from matplotlib.path import Path
 
 import helpers
 
 
 def plot_clusters_and_batch(
-    adata,
-    cluster_key="leiden",
-    batch_key="batch_id",
-    color_map="RdYlBu_r",
-    use_raw=False,
-    wspace=0.25,
-    save=False,
-    show=True,
-):
-
+    adata: AnnData,
+    cluster_key: str = "leiden",
+    batch_key: str = "batch_id",
+    color_map: str = "RdYlBu_r",
+    use_raw: bool = False,
+    wspace: float = 0.25,
+    save: bool = False,
+    show: bool = True,
+) -> list[Axes]:
     sc.set_figure_params(
         scanpy=True,
         dpi=100,
@@ -51,8 +57,13 @@ def plot_clusters_and_batch(
     return out
 
 
-def plot_mapping_correlation(bulk_sig, cmap="RdYlBu_r", vmin=0, save=False, show=True):
-
+def plot_mapping_correlation(
+    bulk_sig: pd.DataFrame,
+    cmap: str = "RdYlBu_r",
+    vmin: float = 0,
+    save: bool | str = False,
+    show: bool = True,
+) -> sns.matrix.ClusterGrid:
     out = sns.clustermap(bulk_sig.corr(), cmap=cmap, vmin=vmin)
 
     if save:
@@ -63,8 +74,9 @@ def plot_mapping_correlation(bulk_sig, cmap="RdYlBu_r", vmin=0, save=False, show
     return out
 
 
-def plot_confusion_matrix(adata, bulk_sig, save="", show=True):
-
+def plot_confusion_matrix(
+    adata: AnnData, bulk_sig: pd.DataFrame, save: bool | str = False, show: bool = True
+) -> ConfusionMatrixDisplay:
     sc.set_figure_params(
         scanpy=True,
         dpi=200,
@@ -113,7 +125,7 @@ def plot_confusion_matrix(adata, bulk_sig, save="", show=True):
         format="pdf",
         facecolor=None,
         transparent=True,
-    )  # , ipython_format='png2x')
+    )
 
     corr_cluster_T = corr_cluster.T
     prediction = []
@@ -127,8 +139,6 @@ def plot_confusion_matrix(adata, bulk_sig, save="", show=True):
         true_value.append(
             adata[:, unique_genes].obs["leiden"][corr_cluster_T.columns[i]]
         )
-
-    from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 
     cm = confusion_matrix(true_value, prediction, labels=None, normalize="true")
     disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=None)
@@ -144,18 +154,17 @@ def plot_confusion_matrix(adata, bulk_sig, save="", show=True):
 
 
 def plot_cluster_and_assignments_umap(
-    adata,
-    cluster_key="leiden",
-    ass_cluster_key="ass_cluster",
-    ass_pearson_key="ass_pearson",
-    color_map="RdYlBu_r",
-    use_raw=False,
-    wspace=0.25,
-    save="",
-    show=True,
-    **scanpy_kwargs
-):
-
+    adata: AnnData,
+    cluster_key: str = "leiden",
+    ass_cluster_key: str = "ass_cluster",
+    ass_pearson_key: str = "ass_pearson",
+    color_map: str = "RdYlBu_r",
+    use_raw: bool = False,
+    wspace: float = 0.25,
+    save: bool | str = False,
+    show: bool = True,
+    **scanpy_kwargs,
+) -> list[Axes]:
     sc.set_figure_params(
         scanpy=True,
         dpi=200,
@@ -176,7 +185,7 @@ def plot_cluster_and_assignments_umap(
         use_raw=use_raw,
         wspace=wspace,
         return_fig=True,
-        **scanpy_kwargs
+        **scanpy_kwargs,
     )
 
     if save:
@@ -188,15 +197,14 @@ def plot_cluster_and_assignments_umap(
 
 
 def plot_bulk_sig_heatmap(
-    bulk_sig,
-    xticklabels=1,
-    yticklabels=False,
-    cmap="viridis",
-    robust=True,
-    save="",
-    show=True,
-):
-
+    bulk_sig: pd.DataFrame,
+    xticklabels: str | bool | list | int = 1,
+    yticklabels: str | bool | list | int = False,
+    cmap: str = "viridis",
+    robust: bool = True,
+    save: bool | str = False,
+    show: bool = True,
+) -> sns.matrix.ClusterGrid:
     out = sns.clustermap(
         bulk_sig,
         xticklabels=xticklabels,
@@ -214,22 +222,21 @@ def plot_bulk_sig_heatmap(
 
 
 def plot_ass_pearson_violin(
-    adata,
-    ass_pearson_key="ass_pearson",
-    cluster_key="leiden",
-    use_raw=False,
-    show=True,
-    save="",
-    **scanpy_kwargs
-):
-
+    adata: AnnData,
+    ass_pearson_key: str = "ass_pearson",
+    cluster_key: str = "leiden",
+    use_raw: bool = False,
+    show: bool = True,
+    save: bool | str = False,
+    **scanpy_kwargs,
+) -> Axes:
     out = sc.pl.violin(
         adata,
         [ass_pearson_key],
         groupby=cluster_key,
         use_raw=use_raw,
         return_fig=True,
-        **scanpy_kwargs
+        **scanpy_kwargs,
     )
 
     if save:
@@ -241,17 +248,16 @@ def plot_ass_pearson_violin(
 
 
 def plot_canon_assigned_labels_umap(
-    adata,
-    cluster_key="leiden",
-    canon_label_ass_key="canon_label_ass",
-    color_map="RdYlBu_r",
-    use_raw=False,
-    wspace=0.25,
-    save="",
-    show=True,
-    **scanpy_kwargs
-):
-
+    adata: AnnData,
+    cluster_key: str = "leiden",
+    canon_label_ass_key: str = "canon_label_ass",
+    color_map: str = "RdYlBu_r",
+    use_raw: bool = False,
+    wspace: float = 0.25,
+    save: bool | str = False,
+    show: bool = True,
+    **scanpy_kwargs,
+) -> list[Axes]:
     out = sc.pl.umap(
         adata,
         color=[cluster_key, canon_label_ass_key],
@@ -259,7 +265,7 @@ def plot_canon_assigned_labels_umap(
         use_raw=use_raw,
         wspace=wspace,
         return_fig=True,
-        **scanpy_kwargs
+        **scanpy_kwargs,
     )  # ,save='adata_map_MSK_phenotypes.png')#,legend_loc='on data')
 
     if save:
@@ -271,19 +277,18 @@ def plot_canon_assigned_labels_umap(
 
 
 def plot_map_vs_test_pearson_violin(
-    adata_test,
-    adata_map,
-    canon_label_ass_key="canon_label_ass",
-    ass_pearson_key="ass_pearson",
-    hue_key="control_vs_experimental",
-    palette="muted",
-    split=True,
-    x_label_rotation=90,
-    legend_loc="lower left",
-    save="",
-    show=True,
-):
-
+    adata_test: AnnData,
+    adata_map: AnnData,
+    canon_label_ass_key: str = "canon_label_ass",
+    ass_pearson_key: str = "ass_pearson",
+    hue_key: str = "control_vs_experimental",
+    palette: str | list | dict = "muted",
+    split: bool = True,
+    x_label_rotation: float = 90,
+    legend_loc: str | tuple[float, float] = "lower left",
+    save: bool | str = False,
+    show: str = True,
+) -> Axes:
     df_vp = pd.concat((adata_map.obs, adata_test.obs))
     plt.figure(figsize=(5, 5))
     out = sns.violinplot(
@@ -307,14 +312,13 @@ def plot_map_vs_test_pearson_violin(
 
 
 def plot_map_vs_test_cluster_fractions(
-    adata_test,
-    adata_map,
-    canon_label_ass_key="canon_label_ass",
-    save="",
-    show=True,
-    marker="o",
-):
-
+    adata_test: AnnData,
+    adata_map: AnnData,
+    canon_label_ass_key: str = "canon_label_ass",
+    save: bool | str = False,
+    show: bool = True,
+    marker: str | Path | MarkerStyle = "o",
+) -> Axes:
     sc.set_figure_params(
         scanpy=True,
         dpi=200,

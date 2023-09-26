@@ -1,4 +1,6 @@
+from __future__ import annotations
 from collections import defaultdict
+from typing import Any
 
 
 class InternalLogger:
@@ -11,15 +13,14 @@ class InternalLogger:
             cls._instance.warnings = []
         return cls._instance
 
-    def write_log(self, nested_keys, value):
+    def write_log(self, nested_keys: list[str], value: Any):
         current_dict = self.log
         for key in nested_keys[:-1]:
             current_dict = current_dict[key]
         current_dict[nested_keys[-1]] = value
 
-    def write_warning(self, warning):
+    def write_warning(self, warning: str):
         self.warnings.append(warning)
 
     def output_log(self):
-
         return dict(self.log)
