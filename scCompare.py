@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import argparse
 import os
 from collections import Counter
@@ -6,10 +8,10 @@ from warnings import warn
 import numpy as np
 import pandas as pd
 import scanpy as sc
+from anndata import AnnData
 from sklearn.metrics import r2_score
 
 import plots
-
 from helpers import (
     _reformat_adata_for_export,
     assign_class_to_cells,
@@ -28,8 +30,7 @@ from helpers import (
 from logger import InternalLogger
 
 
-def qc_adata(adata, cluster_key):
-
+def qc_adata(adata: AnnData, cluster_key: str):
     run_params = InternalLogger()
 
     if cluster_key not in adata.obs:
@@ -45,8 +46,9 @@ def qc_adata(adata, cluster_key):
         run_params.write_warning(warning_text)
 
 
-def qc_adata_map(adata, cluster_key, color_map="RdYlBu_r"):
-
+def qc_adata_map(
+    adata: AnnData, cluster_key: str, color_map: str = "RdYlBu_r"
+) -> AnnData:
     qc_adata(adata, cluster_key)
 
     if "highly_variable" not in adata.var:
@@ -67,8 +69,7 @@ def qc_adata_map(adata, cluster_key, color_map="RdYlBu_r"):
     return adata
 
 
-def qc_adata_test(adata, cluster_key):
-
+def qc_adata_test(adata: AnnData, cluster_key: str) -> AnnData:
     qc_adata(adata, cluster_key)
 
     adata.obs["control_vs_experimental"] = "testing"
@@ -77,16 +78,16 @@ def qc_adata_test(adata, cluster_key):
 
 
 def sc_compare(
-    adata_test,
-    adata_map,
-    outdir="./scCompare_output",
-    map_cluster_key="leiden",
-    test_cluster_key="leiden",
-    n_mad_floor=5,
-    n_mad=0,
-    color_map="RdYlBu_r",
-    make_plots=True,
-):
+    adata_test: AnnData,
+    adata_map: AnnData,
+    outdir: str = "./scCompare_output",
+    map_cluster_key: str = "leiden",
+    test_cluster_key: str = "leiden",
+    n_mad_floor: float = 5,
+    n_mad: float = 0,
+    color_map: str = "RdYlBu_r",
+    make_plots: bool = True,
+) -> AnnData:
     """Run the scCompare pipeline
 
     Args:
@@ -155,7 +156,7 @@ def sc_compare(
     print("Done!")
 
     print("Deriving statistical cutoff...", end="")
-    stat_group_cutoff, canon_label = derive_statistical_group_cutoff(
+    stat_group_cutoff = derive_statistical_group_cutoff(
         adata_map, cluster_key=map_cluster_key, n_mad_floor=n_mad_floor, n_mad=n_mad
     )
     print("Done!")
@@ -406,8 +407,7 @@ def sc_compare(
     return adata_test
 
 
-def _parse_arguments():
-
+def _parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="scCompare",
         description="Compare 2 single-cell RNAseq datasets",
@@ -451,7 +451,9 @@ def _parse_arguments():
     return args
 
 
-def write_scCompare_adata(adata, outpath="./scCompare_output/adata_out.h5ad"):
+def write_scCompare_adata(
+    adata: AnnData, outpath: str = "./scCompare_output/adata_out.h5ad"
+):
     """Helper to write scCompare adata object to disk
 
     :params: adata: adata object that has run scCompare
@@ -462,7 +464,6 @@ def write_scCompare_adata(adata, outpath="./scCompare_output/adata_out.h5ad"):
 
 
 if __name__ == "__main__":
-
     args = _parse_arguments()
     adata_out = sc_compare(
         adata_test=args.test_data,

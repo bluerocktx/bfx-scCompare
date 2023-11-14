@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from collections import Counter
-from typing import Union
 
 import anndata
 import matplotlib.pyplot as plt
@@ -8,14 +9,14 @@ import pandas as pd
 import scanpy as sc
 import scanpy.external as sce
 import sklearn
+from kneed import KneeLocator
 from scipy import stats
 
-from kneed import KneeLocator
 from logger import InternalLogger
 
 
 def generate_mapping_adata_noUMAP(
-    adata: anndata.AnnData, include: list, n_neighbors=100, resolution=1
+    adata: anndata.AnnData, include: list, n_neighbors: int = 100, resolution=1
 ) -> anndata.AnnData:
     inc_bat = []
     for i in range(len(adata.obs["batch_id"])):
@@ -31,9 +32,7 @@ def generate_mapping_adata_noUMAP(
     sc.pp.scale(adata_map)
     # Computes PCA coordinates, loadings and variance decomposition, excludes highly
     # variable genes
-    sc.tl.pca(
-        adata_map, use_highly_variable=True
-    )
+    sc.tl.pca(adata_map, use_highly_variable=True)
 
     thresholds = np.linspace(0, 49, 50)
     curve = np.cumsum(list(adata.uns["pca"]["variance_ratio"]))
@@ -101,7 +100,9 @@ def _reformat_adata_for_export(adata: anndata.AnnData) -> anndata.AnnData:
     return adata
 
 
-def calc_silhouette_score(adata: anndata.AnnData, key="canon_label_ass") -> float:
+def calc_silhouette_score(
+    adata: anndata.AnnData, key: str = "canon_label_ass"
+) -> float:
     """Calculate the silhouette score from an anndata object.
 
      Args:
@@ -169,7 +170,9 @@ def calc_simple_match_similarity(
 
 
 def calc_assigned_cluster_fracs(
-    adata_test: anndata.AnnData, adata_map: anndata.AnnData, key="canon_label_ass"
+    adata_test: anndata.AnnData,
+    adata_map: anndata.AnnData,
+    key: str = "canon_label_ass",
 ) -> pd.DataFrame:
     """Calculate assigned cluster fractions for both mapping and testing datasets
 
@@ -201,7 +204,7 @@ def calc_assigned_cluster_fracs(
 
 
 def get_gene_presence_in_cluster(
-    adata: anndata.AnnData, uns_key="rank_genes_groups_filtered"
+    adata: anndata.AnnData, uns_key: str = "rank_genes_groups_filtered"
 ) -> pd.DataFrame:
     """Get a dataframe representing if a gene is present in a cluster
 
@@ -233,7 +236,7 @@ def get_gene_presence_in_cluster(
 
 
 def get_marker_genes_per_cluster(
-    adata: anndata.AnnData, uns_key="rank_genes_groups_filtered"
+    adata: anndata.AnnData, uns_key: str = "rank_genes_groups_filtered"
 ) -> pd.DataFrame:
     """Return a dataframe of marker genes from each cluster.
 
@@ -275,8 +278,8 @@ def rename_adata_obs_values(
 
 
 def calc_frequencies(
-    adata: anndata.AnnData, key: str, return_as="dict"
-) -> Union[dict, pd.DataFrame]:
+    adata: anndata.AnnData, key: str, return_as: str = "dict"
+) -> dict | pd.DataFrame:
     """Calculate frequencies of items in adata.obs[key].
 
     Args:
@@ -297,7 +300,9 @@ def calc_frequencies(
         return pd.DataFrame(out, index=[0])
 
 
-def calc_frac_unmapped_cells(adata: anndata.AnnData, key="canon_label_ass") -> float:
+def calc_frac_unmapped_cells(
+    adata: anndata.AnnData, key: str = "canon_label_ass"
+) -> float:
     """Calculate the fraction of unmapped cells resulting from an scCompare classification.
 
     Args:
@@ -315,7 +320,7 @@ def calc_frac_unmapped_cells(adata: anndata.AnnData, key="canon_label_ass") -> f
 
 
 def calc_frac_misclassified_cells(
-    adata: anndata.AnnData, key1="leiden", key2="canon_label_ass"
+    adata: anndata.AnnData, key1: str = "leiden", key2: str = "canon_label_ass"
 ) -> float:
     """Calculate the number of misclassified cells.
 
@@ -336,7 +341,7 @@ def calc_frac_misclassified_cells(
 
 
 def assign_class_to_cells(
-    adata: anndata.AnnData, stat_group_cutoff, outkey="canon_label_ass"
+    adata: anndata.AnnData, stat_group_cutoff: float, outkey: str = "canon_label_ass"
 ) -> anndata.AnnData:
     """Assigns a class to cells based on `stat_group_cutoff`.
 
@@ -345,7 +350,7 @@ def assign_class_to_cells(
 
     Args:
         adata: anndata object of scRNAseq data
-        stat_group_cutoff:
+        stat_group_cutoff: Pearson score below which to label cell "unmatched"
         outkey: `adata.obs` key to store the output
 
     Returns:
@@ -361,8 +366,7 @@ def assign_class_to_cells(
     return adata
 
 
-def derive_aggregate_metric_map(adata, stat_cutoff):
-
+def derive_aggregate_metric_map(adata: anndata.AnnData, stat_cutoff: float) -> float:
     pearson_avg = adata.obs["ass_pearson"].sum() / len(adata.obs)
     pearson_met = 1 - (np.sum(adata.obs["ass_pearson"] < stat_cutoff) / len(adata.obs))
     agg_met_map = pearson_avg * pearson_met
@@ -370,11 +374,15 @@ def derive_aggregate_metric_map(adata, stat_cutoff):
     return agg_met_map
 
 
-def derive_statistical_cutoff(adata, n_mads=3):
+def derive_statistical_cutoff(adata: anndata.AnnData, n_mads: float = 3):
     """Returns the statistical cutoff generated from the mapping dataset
 
-    :param: adata(AnnData): Mapping adata object
-    :returns: stat_cutoff(numpy.float64): Statistical cutoff
+    Args:
+        adata: Mapping adata object
+        n_mads: The number of median absolute deviations away from the median to
+            define the cutoff
+    Returns:
+        Statistical cutoff
     """
 
     lower = adata.obs["ass_pearson"][
@@ -392,7 +400,7 @@ def derive_statistical_cutoff(adata, n_mads=3):
 
 
 def assign_clusters_to_cells(
-    adata: anndata.AnnData, bulk_sig: pd.DataFrame, subset_unique=False
+    adata: anndata.AnnData, bulk_sig: pd.DataFrame, subset_unique: bool = False
 ) -> anndata.AnnData:
     """Assigns a cluster and a Pearson score to each cell based on the bulk signatures.
 
@@ -442,7 +450,9 @@ def assign_clusters_to_cells(
     return adata
 
 
-def generate_bulk_sig(adata: anndata.AnnData, cluster_key="leiden") -> pd.DataFrame:
+def generate_bulk_sig(
+    adata: anndata.AnnData, cluster_key: str = "leiden"
+) -> pd.DataFrame:
     """Generate bulk signatures by cluster.
 
     Args:
@@ -473,8 +483,11 @@ def generate_bulk_sig(adata: anndata.AnnData, cluster_key="leiden") -> pd.DataFr
 
 
 def derive_statistical_group_cutoff(
-    adata_map: anndata.AnnData, cluster_key="leiden", n_mad_floor=5, n_mad=None
-) -> pd.DataFrame:
+    adata_map: anndata.AnnData,
+    cluster_key: str = "leiden",
+    n_mad_floor: float | None = 5,
+    n_mad: float | None = None,
+) -> dict[str, float]:
     """Derive the statistical cutoff for each applied group in the mapping dataset.
 
     Args:
@@ -486,7 +499,6 @@ def derive_statistical_group_cutoff(
     Returns:
         stat_group_cutoff, canon label
         stat_group_cutoff: cutoff values for each group
-        canon_label:
     """
 
     run_params = InternalLogger()
@@ -508,18 +520,13 @@ def derive_statistical_group_cutoff(
             )  #
             stat_group_cutoff[leiden_clusters[i]] = stat_cutoff
 
-        canon_label = {}
-        clusters = list(set(adata_map.obs[cluster_key]))
-        for i in range(len(clusters)):
-            canon_label[clusters[i]] = clusters[i]
-
         canon_label_ass = []
         for i in range(len(adata_map.obs)):
             if (
                 adata_map.obs["ass_pearson"][i]
                 > stat_group_cutoff[adata_map.obs["ass_cluster"][i]]
             ):
-                canon_label_ass.append(canon_label[adata_map.obs["ass_cluster"][i]])
+                canon_label_ass.append(adata_map.obs["ass_cluster"][i])
             else:
                 canon_label_ass.append("unmapped")
         adata_map.obs["canon_label_ass"] = canon_label_ass
@@ -561,4 +568,4 @@ def derive_statistical_group_cutoff(
         )  #
         stat_group_cutoff[leiden_clusters[i]] = stat_cutoff
 
-    return stat_group_cutoff, canon_label
+    return stat_group_cutoff
