@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections import Counter
-from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -12,59 +11,46 @@ from anndata import AnnData
 from matplotlib.axes import Axes
 from matplotlib.markers import MarkerStyle
 from matplotlib.path import Path
+from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 
 import helpers
 
 
 def plot_clusters_and_batch(
     adata: AnnData,
-    cluster_key: str = "leiden",
-    batch_key: str = "batch_id",
-    color_map: str = "RdYlBu_r",
-    use_raw: bool = False,
-    wspace: float = 0.25,
+    cluster_key: str,
+    batch_key: str,
+    title: str | None = None,
     save: bool = False,
     show: bool = True,
+    **scanpy_kwargs,
 ) -> list[Axes]:
-    sc.set_figure_params(
-        scanpy=True,
-        dpi=100,
-        dpi_save=250,
-        frameon=True,
-        vector_friendly=False,
-        fontsize=14,
-        figsize=None,
-        color_map=None,
-        format="pdf",
-        facecolor=None,
-        transparent=True,
-    )  # , ipython_format='png2x')
-
-    out = sc.pl.umap(
-        adata,
-        color=[cluster_key, batch_key],
-        color_map=color_map,
-        use_raw=use_raw,
-        wspace=wspace,
-        return_fig=True,
+    return plot_grouped_umaps(
+        adata=adata,
+        keys=[cluster_key, batch_key],
+        title=title,
+        save=save,
+        show=show,
+        **scanpy_kwargs,
     )
-
-    if save:
-        plt.savefig(save, bbox_inches="tight")
-    if show:
-        plt.show()
-
-    return out
 
 
 def plot_mapping_correlation(
     bulk_sig: pd.DataFrame,
-    cmap: str = "RdYlBu_r",
-    vmin: float = 0,
+    title: str | None = None,
     save: bool | str = False,
     show: bool = True,
-) -> sns.matrix.ClusterGrid:
-    out = sns.clustermap(bulk_sig.corr(), cmap=cmap, vmin=vmin)
+    **kwargs,
+):
+    default_kwargs = {
+        "cmap": "RdYlBu_r",
+        "vmin": 0,
+        "cbar_kws": {"label": "correlation"},
+    }
+    out = sns.clustermap(bulk_sig.corr(), **{**default_kwargs, **kwargs})
+
+    if title:
+        out.fig.suptitle(title, y=1)
 
     if save:
         out.savefig(save, bbox_inches="tight")
@@ -155,12 +141,110 @@ def plot_confusion_matrix(
 
 def plot_cluster_and_assignments_umap(
     adata: AnnData,
+    title: str | None = None,
     cluster_key: str = "leiden",
     ass_cluster_key: str = "ass_cluster",
     ass_pearson_key: str = "ass_pearson",
-    color_map: str = "RdYlBu_r",
+    save: bool | str = False,
+    show: bool = True,
+    **scanpy_kwargs,
+) -> list[Axes]:
+    return plot_grouped_umaps(
+        adata=adata,
+        keys=[cluster_key, ass_cluster_key, ass_pearson_key],
+        title=title,
+        save=save,
+        show=show,
+        **scanpy_kwargs,
+    )
+
+
+def plot_bulk_sig_heatmap(
+    bulk_sig: pd.DataFrame,
+    title: str | None = None,
+    xticklabels: str | bool | list | int = 1,
+    yticklabels: str | bool | list | int = False,
+    cmap: str = "viridis",
+    robust: bool = True,
+    save: bool | str = False,
+    show: bool = True,
+) -> sns.matrix.ClusterGrid:
+    out = sns.clustermap(
+        bulk_sig,
+        xticklabels=xticklabels,
+        yticklabels=yticklabels,
+        cmap=cmap,
+        robust=robust,
+    )
+
+    if title:
+        out.fig.suptitle(title, y=1.05)
+
+    if save:
+        plt.savefig(save, bbox_inches="tight")
+    if show:
+        plt.show()
+
+    return out
+
+
+def plot_ass_pearson_violin(
+    adata: AnnData,
+    canon_label_ass_key: str,
+    title: str | None = None,
+    ass_pearson_key: str = "ass_pearson",
     use_raw: bool = False,
-    wspace: float = 0.25,
+    show: bool = True,
+    save: bool | str = False,
+    **scanpy_kwargs,
+) -> Axes:
+    ax = plt.axes()
+
+    sc.pl.violin(
+        adata,
+        [ass_pearson_key],
+        groupby=canon_label_ass_key,
+        use_raw=use_raw,
+        return_fig=True,
+        ax=ax,
+        show=False,
+        **scanpy_kwargs,
+    )
+
+    if title:
+        ax.set_title(title)
+
+    if save:
+        ax.get_figure().savefig(save, bbox_inches="tight")
+    if show:
+        ax.get_figure().show()
+
+    return ax
+
+
+def plot_canon_assigned_labels_umap(
+    adata: AnnData,
+    title: str | None = None,
+    cluster_key: str = "leiden",
+    canon_label_ass_key: str = "canon_label_ass",
+    save: bool | str = False,
+    show: bool = True,
+    **scanpy_kwargs,
+) -> list[Axes]:
+    return plot_grouped_umaps(
+        adata=adata,
+        keys=[cluster_key, canon_label_ass_key],
+        title=title,
+        save=save,
+        show=show,
+        **scanpy_kwargs,
+    )
+
+
+def plot_grouped_umaps(
+    adata: AnnData,
+    keys: list[str],
+    title: str | None = None,
     save: bool | str = False,
     show: bool = True,
     **scanpy_kwargs,
@@ -178,95 +262,18 @@ def plot_cluster_and_assignments_umap(
         facecolor=None,
         transparent=True,
     )  # , ipython_format='png2x')
-    out = sc.pl.umap(
-        adata,
-        color=[cluster_key, ass_cluster_key, ass_pearson_key],
-        color_map=color_map,
-        use_raw=use_raw,
-        wspace=wspace,
-        return_fig=True,
-        **scanpy_kwargs,
-    )
 
-    if save:
-        plt.savefig(save, bbox_inches="tight")
-    if show:
-        plt.show()
+    default_kwgs = {
+        "use_raw": False,
+        "wspace": 0.25,
+        "color_map": "RdYlBu_r",
+    }
+    default_kwgs.update(scanpy_kwargs)
 
-    return out
+    out = sc.pl.umap(adata, color=keys, show=False, return_fig=True, **default_kwgs)
 
-
-def plot_bulk_sig_heatmap(
-    bulk_sig: pd.DataFrame,
-    xticklabels: str | bool | list | int = 1,
-    yticklabels: str | bool | list | int = False,
-    cmap: str = "viridis",
-    robust: bool = True,
-    save: bool | str = False,
-    show: bool = True,
-) -> sns.matrix.ClusterGrid:
-    out = sns.clustermap(
-        bulk_sig,
-        xticklabels=xticklabels,
-        yticklabels=yticklabels,
-        cmap=cmap,
-        robust=robust,
-    )
-
-    if save:
-        plt.savefig(save, bbox_inches="tight")
-    if show:
-        plt.show()
-
-    return out
-
-
-def plot_ass_pearson_violin(
-    adata: AnnData,
-    ass_pearson_key: str = "ass_pearson",
-    cluster_key: str = "leiden",
-    use_raw: bool = False,
-    show: bool = True,
-    save: bool | str = False,
-    **scanpy_kwargs,
-) -> Axes:
-    out = sc.pl.violin(
-        adata,
-        [ass_pearson_key],
-        groupby=cluster_key,
-        use_raw=use_raw,
-        return_fig=True,
-        **scanpy_kwargs,
-    )
-
-    if save:
-        plt.savefig(save, bbox_inches="tight")
-    if show:
-        plt.show()
-
-    return out
-
-
-def plot_canon_assigned_labels_umap(
-    adata: AnnData,
-    cluster_key: str = "leiden",
-    canon_label_ass_key: str = "canon_label_ass",
-    color_map: str = "RdYlBu_r",
-    use_raw: bool = False,
-    wspace: float = 0.25,
-    save: bool | str = False,
-    show: bool = True,
-    **scanpy_kwargs,
-) -> list[Axes]:
-    out = sc.pl.umap(
-        adata,
-        color=[cluster_key, canon_label_ass_key],
-        color_map=color_map,
-        use_raw=use_raw,
-        wspace=wspace,
-        return_fig=True,
-        **scanpy_kwargs,
-    )  # ,save='adata_map_MSK_phenotypes.png')#,legend_loc='on data')
+    if title:
+        out.suptitle(title, y=1.05)
 
     if save:
         plt.savefig(save, bbox_inches="tight")
@@ -279,6 +286,7 @@ def plot_canon_assigned_labels_umap(
 def plot_map_vs_test_pearson_violin(
     adata_test: AnnData,
     adata_map: AnnData,
+    title: str | None = None,
     canon_label_ass_key: str = "canon_label_ass",
     ass_pearson_key: str = "ass_pearson",
     hue_key: str = "control_vs_experimental",
@@ -291,6 +299,7 @@ def plot_map_vs_test_pearson_violin(
 ) -> Axes:
     df_vp = pd.concat((adata_map.obs, adata_test.obs))
     plt.figure(figsize=(5, 5))
+    ax = plt.axes()
     out = sns.violinplot(
         x=canon_label_ass_key,
         y=ass_pearson_key,
@@ -299,9 +308,13 @@ def plot_map_vs_test_pearson_violin(
         palette=palette,
         split=split,
         rotation=x_label_rotation,
+        ax=ax,
     )
     plt.xticks(rotation=x_label_rotation)
     out.legend(loc=legend_loc)
+
+    if title:
+        ax.set_title(title)
 
     if save:
         plt.savefig(save, bbox_inches="tight")
@@ -314,9 +327,13 @@ def plot_map_vs_test_pearson_violin(
 def plot_map_vs_test_cluster_fractions(
     adata_test: AnnData,
     adata_map: AnnData,
+    title: str | None = None,
+    map_name: str = "Map",
+    test_name: str = "Test",
     canon_label_ass_key: str = "canon_label_ass",
     save: bool | str = False,
     show: bool = True,
+    log: bool = False,
     marker: str | Path | MarkerStyle = "o",
 ) -> Axes:
     sc.set_figure_params(
@@ -334,28 +351,40 @@ def plot_map_vs_test_cluster_fractions(
         ipython_format="png2x",
     )
 
-    freqs = Counter(adata_map.obs["canon_label_ass"])
-    map_freqs = pd.DataFrame(freqs, index=[0]) / len(adata_map.obs)
-
+    map_freqs = helpers.calc_frequencies(adata_map, canon_label_ass_key, return_as="df")
     ass_clust_freqs = helpers.calc_frequencies(
         adata_test, canon_label_ass_key, return_as="df"
     )
     ass_clust_freqs.index = [1]
+    df_fracs = pd.concat((map_freqs, ass_clust_freqs))
 
-    df_fracs = pd.concat((map_freqs, ass_clust_freqs)).fillna(0).T.sort_values(by=0)
+    xlabel = f"{map_name} Cluster Fractions"
+    ylabel = f"{test_name} Cluster Fractions"
+    if log:
+        df_fracs.loc[0] = np.log(df_fracs.loc[0])
+        df_fracs.loc[1] = np.log(df_fracs.loc[1])
+        xlabel = f"Log({xlabel})"
+        ylabel = f"Log({ylabel})"
+        xmin = np.min(np.min(df_fracs))
+    else:
+        df_fracs = df_fracs.fillna(0)
+        xmin = 0
 
-    x = np.linspace(0, np.max(np.max(df_fracs)), 10)
+    df_fracs = df_fracs.T.sort_values(by=0, ascending=False)
+
+    x = np.linspace(xmin, np.max(np.max(df_fracs)), 10)
     plt.figure()
     plt.plot(x, x, "k")
     for i in range(len(df_fracs.index)):
-        plt.plot(
-            df_fracs[0].values[i], df_fracs[1].values[i], marker=marker
-        )  # color=colordict[df_fracs.index[i]]
+        plt.plot(df_fracs[0].values[i], df_fracs[1].values[i], marker=marker)
 
     ax = plt.gca()
     ax.legend(["x=y"] + list(df_fracs.index), bbox_to_anchor=(1.05, 1))
-    plt.xlabel("Map Cluster Fractions")
-    plt.ylabel("Test Cluster Fractions")
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+
+    if title:
+        ax.set_title(title)
 
     if save:
         plt.savefig(save, bbox_inches="tight")

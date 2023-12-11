@@ -487,6 +487,7 @@ def derive_statistical_group_cutoff(
     cluster_key: str = "leiden",
     n_mad_floor: float | None = 5,
     n_mad: float | None = None,
+    show_plot: bool = True,
 ) -> dict[str, float]:
     """Derive the statistical cutoff for each applied group in the mapping dataset.
 
@@ -545,17 +546,23 @@ def derive_statistical_group_cutoff(
         kneedle = KneeLocator(
             mads, misclass, S=1.0, curve="convex", direction="decreasing"
         )
-        print(f"Knee Locator Result for Number of MADs Selection: {kneedle.knee}")
+        print(f"Knee Locator Result for Number of MADs Selection: {kneedle.knee}...")
         run_params.write_log(["stat_cutoff_knee_value"], kneedle.knee)
 
         if kneedle.knee < n_mad_floor:
+            print(
+                f"Knee Locator Result under MAD floor, using {n_mad_floor} MADs "
+                "instead..."
+            )
             n_mads = n_mad_floor
         else:
             n_mads = kneedle.knee
 
-    plt.plot(mads, misclass)
-    plt.axvline(x=n_mads, color="r")
-    plt.show()
+    if show_plot:
+        plt.plot(mads, misclass)
+        plt.title("Elbow Plot for Statistical Cutoff Threshold")
+        plt.axvline(x=n_mads, color="r")
+        plt.show()
 
     for i in range(len(leiden_clusters)):
         group = adata_map.obs["ass_pearson"][

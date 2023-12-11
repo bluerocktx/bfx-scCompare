@@ -50,6 +50,7 @@ def qc_adata_map(
     adata: AnnData, cluster_key: str, color_map: str = "RdYlBu_r"
 ) -> AnnData:
     qc_adata(adata, cluster_key)
+    adata.obs["control_vs_experimental"] = "control"
 
     if "highly_variable" not in adata.var:
         error_text = (
@@ -70,16 +71,14 @@ def qc_adata_map(
 
 
 def qc_adata_test(adata: AnnData, cluster_key: str) -> AnnData:
-    qc_adata(adata, cluster_key)
-
     adata.obs["control_vs_experimental"] = "testing"
 
     return adata
 
 
 def sc_compare(
-    adata_test: AnnData,
-    adata_map: AnnData,
+    adata_test: AnnData | str,
+    adata_map: AnnData | str,
     outdir: str = "./scCompare_output",
     map_cluster_key: str = "leiden",
     test_cluster_key: str = "leiden",
@@ -87,6 +86,7 @@ def sc_compare(
     n_mad: float = 0,
     color_map: str = "RdYlBu_r",
     make_plots: bool = True,
+    show_plots: bool = True,
 ) -> AnnData:
     """Run the scCompare pipeline
 
@@ -157,7 +157,11 @@ def sc_compare(
 
     print("Deriving statistical cutoff...", end="")
     stat_group_cutoff = derive_statistical_group_cutoff(
-        adata_map, cluster_key=map_cluster_key, n_mad_floor=n_mad_floor, n_mad=n_mad
+        adata_map,
+        cluster_key=map_cluster_key,
+        n_mad_floor=n_mad_floor,
+        n_mad=n_mad,
+        show_plot=show_plots,
     )
     print("Done!")
     run_params.write_log(["stat_group_cutoff"], stat_group_cutoff)
@@ -179,9 +183,11 @@ def sc_compare(
     print("Done!")
 
     if make_plots:
-        print("Mapping correlation plot...")
         thisplot = plots.plot_mapping_correlation(
-            bulk_sig, save=os.path.join(plot_outdir, "mapping_correlation.png")
+            bulk_sig,
+            title="Mapping correlation plot",
+            save=os.path.join(plot_outdir, "mapping_correlation.png"),
+            show=show_plots,
         )
         run_params.write_log(["plots", "mapping_correlation"], thisplot)
 
@@ -220,6 +226,7 @@ def sc_compare(
 
     # Main workflow
 
+    adata_test = adata_test.copy()
     adata_test = assign_clusters_to_cells(adata_test, bulk_sig)
     adata_test.uns["ass_cluster_colors"] = adata_map.uns[f"{test_cluster_key}_colors"]
     adata_test = assign_class_to_cells(adata_test, stat_group_cutoff)
@@ -227,9 +234,6 @@ def sc_compare(
     print("Calculating cluster frequencies...", end="")
     ass_clust_freqs = calc_frequencies(adata_test, "canon_label_ass", return_as="df")
     run_params.write_log(["assigned_cluster_frequencies"], ass_clust_freqs)
-
-    leiden_clust_freqs = calc_frequencies(adata_map, "leiden", return_as="df")
-    run_params.write_log(["cluster_frequencies"], leiden_clust_freqs)
     print("Done!")
 
     fraction_mapped_cells = 1 - np.sum(
@@ -323,73 +327,66 @@ def sc_compare(
 
     if make_plots:
         print("Generating plots")
-        n_plots = 6
 
-        # Block 6
-        i = 1
-        # print(f"Generating plot {i}/8...", end='\r')
-        print("Clusters and batch plot...")
-        thisplot = plots.plot_clusters_and_batch(
-            adata_map,
-            save=os.path.join(plot_outdir, "clusters_and_mapping_batches.png"),
-        )
-        run_params.write_log(["plots", "clusters_and_batch"], thisplot)
-
-        # Block 9
-        i += 1
-        # print(f"Generating plot {i}/8...", end='\r')
-        print("Clusters and assignments UMAP...")
         thisplot = plots.plot_cluster_and_assignments_umap(
             adata_map,
+            title="Original and Assigned Annotations (mapping data)",
+            cluster_key=map_cluster_key,
             save=os.path.join(plot_outdir, "mapping_clusters_and_assignments_umap.png"),
+            show=show_plots,
         )
         run_params.write_log(["plots", "clusters_and_assignments_umap"], thisplot)
 
-        i += 1
-        # print(f"Generating plot {i}/8...", end='\r')
-        print("Bulk signature heatmap...")
         thisplot = plots.plot_bulk_sig_heatmap(
-            bulk_sig, save=os.path.join(plot_outdir, "bulk_sig_heatmap.png")
+            bulk_sig,
+            title="Bulk signature heatmap",
+            save=os.path.join(plot_outdir, "bulk_sig_heatmap.png"),
+            show=show_plots,
         )
         run_params.write_log(["plots", "bulk_sig_heatmap"], thisplot)
 
-        # Block 10
-        i += 1
-        # print(f"Generating plot {i}/8...", end='\r')
-        print("Assigned Pearson violin...")
         thisplot = plots.plot_ass_pearson_violin(
-            adata_map, save=os.path.join(plot_outdir, "ass_pearson_violin.png")
+            adata_map,
+            canon_label_ass_key=map_cluster_key,
+            title="Assigned Pearson violin (mapping data)",
+            save=os.path.join(plot_outdir, "ass_pearson_violin.png"),
+            show=show_plots,
         )
         run_params.write_log(["plots", "assigned_pearson_violin"], thisplot)
 
-        # Block 14
-        i += 1
-        # print(f"Generating plot {i}/8...", end='\r')
-        print("Assigned labels UMAP plot...")
         thisplot = plots.plot_canon_assigned_labels_umap(
             adata_map,
-            save=os.path.join(plot_outdir, "canon_label_assignments_umap.png"),
+            title="Original and final assigned labels UMAP plot (mapping data)",
+            cluster_key=map_cluster_key,
+            save=os.path.join(plot_outdir, "map_canon_label_assignments_umap.png"),
+            show=show_plots,
         )
-        run_params.write_log(["plots", "canon_assigned_labels"], thisplot)
+        run_params.write_log(["plots", "map_canon_assigned_labels"], thisplot)
 
-        # Block 17
-        i += 1
-        # print(f"Generating plot {i}/8...", end='\r')
-        print("Map vs testing Pearson violin plot...")
+        thisplot = plots.plot_grouped_umaps(
+            adata_test,
+            title="Raw and final assigned labels UMAP plot (test data)",
+            keys=["ass_cluster", "canon_label_ass"],
+            save=os.path.join(plot_outdir, "test_label_assignments_umap.png"),
+            show=show_plots,
+        )
+        run_params.write_log(["plots", "test_assigned_labels"], thisplot)
+
         thisplot = plots.plot_map_vs_test_pearson_violin(
             adata_test,
             adata_map,
+            title="Map vs test Pearson violin plot",
             save=os.path.join(plot_outdir, "map_vs_test_pearson_violin.png"),
+            show=show_plots,
         )
         run_params.write_log(["plots", "map_vs_test_pearson_violin"], thisplot)
 
-        i += 1
-        # print(f"Generating plot {i}/8...", end='\r')
-        print("Map vs test cluster fractions....")
         plots.plot_map_vs_test_cluster_fractions(
             adata_test,
             adata_map,
+            title="Map vs test cluster fractions",
             save=os.path.join(plot_outdir, "map_vs_test_cluster_fractions.png"),
+            show=show_plots,
         )
         run_params.write_log(["plots", "map_vs_test_cluster_fractions"], thisplot)
 
