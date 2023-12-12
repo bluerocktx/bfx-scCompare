@@ -215,7 +215,7 @@ def sc_compare(
 
     adata_test = adata_test.copy()
     adata_test = assign_clusters_to_cells(adata_test, bulk_sig)
-    adata_test.uns["asgd_cluster_colors"] = adata_map.uns[f"{test_cluster_key}_colors"]
+    adata_test.uns["asgd_cluster_colors"] = adata_map.uns[f"{map_cluster_key}_colors"]
     adata_test = assign_class_to_cells(adata_test, stat_group_cutoff)
 
     print("Calculating cluster frequencies...", end="")

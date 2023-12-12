@@ -196,6 +196,10 @@ def plot_asgd_pearson_violin(
     save: bool | str = False,
     **scanpy_kwargs,
 ) -> Axes:
+    scanpy_kwargs_final = {
+        "rotation": 90
+    }
+    scanpy_kwargs_final.update(scanpy_kwargs)
     ax = plt.axes()
 
     sc.pl.violin(
@@ -206,7 +210,7 @@ def plot_asgd_pearson_violin(
         return_fig=True,
         ax=ax,
         show=False,
-        **scanpy_kwargs,
+        **scanpy_kwargs_final,
     )
 
     if title:
@@ -372,14 +376,25 @@ def plot_map_vs_test_cluster_fractions(
 
     df_fracs = df_fracs.T.sort_values(by=0, ascending=False)
 
+    canon_label_asgd_key_colors = canon_label_asgd_key + "_colors"
+
     x = np.linspace(xmin, np.max(np.max(df_fracs)), 10)
     plt.figure()
-    plt.plot(x, x, "k")
-    for i in range(len(df_fracs.index)):
-        plt.plot(df_fracs[0].values[i], df_fracs[1].values[i], marker=marker)
+    plt.plot(x, x, "k",label="x=y")
+
+    if (canon_label_asgd_key in adata_map.obs) and (canon_label_asgd_key_colors in adata_map.uns):
+        color_labels = adata_map.obs[canon_label_asgd_key].drop_duplicates().sort_values().values.tolist()
+        color_dict = dict(zip(color_labels, adata_map.uns[canon_label_asgd_key_colors]))
+        color_dict['unmapped'] = "#050500"
+
+        for i, idx in enumerate(df_fracs.index):
+            plt.plot(df_fracs[0].values[i], df_fracs[1].values[i], marker=marker,color=color_dict[idx],label=idx)
+    else:
+        for i, idx in enumerate(df_fracs.index):
+            plt.plot(df_fracs[0].values[i], df_fracs[1].values[i], marker=marker,label=idx)
 
     ax = plt.gca()
-    ax.legend(["x=y"] + list(df_fracs.index), bbox_to_anchor=(1.05, 1))
+    ax.legend(bbox_to_anchor=(1.05, 1))
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
 
