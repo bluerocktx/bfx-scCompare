@@ -79,9 +79,9 @@ def qc_adata_test(adata: AnnData, cluster_key: str) -> AnnData:
 def sc_compare(
     adata_test: AnnData | str,
     adata_map: AnnData | str,
+    map_cluster_key: str,
+    test_cluster_key: str | None = None,
     outdir: str = "./scCompare_output",
-    map_cluster_key: str = "leiden",
-    test_cluster_key: str = "leiden",
     n_mad_floor: float = 5,
     n_mad: float = 0,
     make_plots: bool = True,
@@ -95,15 +95,20 @@ def sc_compare(
         outdir: path to output directory
         map_cluster_key: adata.obs column name containing cluster IDs for the mapping
             dataset
-        test_cluster_key: adata.obs column name containing cluster IDs for the test
-            dataset
-        n_mad_floor: lowest MAD to be used before it is automatically calculated
-        n_mad: Number of MADs to use for cutoff calculation
-        make_plots: Make the plots?
+        test_cluster_key (optional): adata.obs column name containing cluster IDs for
+            the test dataset. Defaults to same as `map_cluster_key`.
+        n_mad_floor (optional): lowest MAD to be used before it is automatically
+            calculated. Default: 5.
+        n_mad (optional): Number of MADs to use for cutoff calculation. If set to 0, will
+            be statistically calculated by finding the knee. Default: 0
+        make_plots (optional): Make the plots?. Default: False.
 
     Returns:
         adata_test object with additional annotations provided by scCompare pipeline
     """
+
+    if test_cluster_key is None:
+        test_cluster_key = map_cluster_key
 
     # Accommodate reading from CLI
     if type(adata_test) is str:
