@@ -143,15 +143,15 @@ def plot_cluster_and_assignments_umap(
     adata: AnnData,
     title: str | None = None,
     cluster_key: str = "leiden",
-    ass_cluster_key: str = "ass_cluster",
-    ass_pearson_key: str = "ass_pearson",
+    asgd_cluster_key: str = "asgd_cluster",
+    asgd_pearson_key: str = "asgd_pearson",
     save: bool | str = False,
     show: bool = True,
     **scanpy_kwargs,
 ) -> list[Axes]:
     return plot_grouped_umaps(
         adata=adata,
-        keys=[cluster_key, ass_cluster_key, ass_pearson_key],
+        keys=[cluster_key, asgd_cluster_key, asgd_pearson_key],
         title=title,
         save=save,
         show=show,
@@ -188,11 +188,11 @@ def plot_bulk_sig_heatmap(
     return out
 
 
-def plot_ass_pearson_violin(
+def plot_asgd_pearson_violin(
     adata: AnnData,
-    canon_label_ass_key: str,
+    canon_label_asgd_key: str,
     title: str | None = None,
-    ass_pearson_key: str = "ass_pearson",
+    asgd_pearson_key: str = "asgd_pearson",
     use_raw: bool = False,
     show: bool = True,
     save: bool | str = False,
@@ -202,8 +202,8 @@ def plot_ass_pearson_violin(
 
     sc.pl.violin(
         adata,
-        [ass_pearson_key],
-        groupby=canon_label_ass_key,
+        [asgd_pearson_key],
+        groupby=canon_label_asgd_key,
         use_raw=use_raw,
         return_fig=True,
         ax=ax,
@@ -226,14 +226,14 @@ def plot_canon_assigned_labels_umap(
     adata: AnnData,
     title: str | None = None,
     cluster_key: str = "leiden",
-    canon_label_ass_key: str = "canon_label_ass",
+    canon_label_asgd_key: str = "canon_label_asgd",
     save: bool | str = False,
     show: bool = True,
     **scanpy_kwargs,
 ) -> list[Axes]:
     return plot_grouped_umaps(
         adata=adata,
-        keys=[cluster_key, canon_label_ass_key],
+        keys=[cluster_key, canon_label_asgd_key],
         title=title,
         save=save,
         show=show,
@@ -287,8 +287,8 @@ def plot_map_vs_test_pearson_violin(
     adata_test: AnnData,
     adata_map: AnnData,
     title: str | None = None,
-    canon_label_ass_key: str = "canon_label_ass",
-    ass_pearson_key: str = "ass_pearson",
+    canon_label_asgd_key: str = "canon_label_asgd",
+    asgd_pearson_key: str = "asgd_pearson",
     hue_key: str = "control_vs_experimental",
     palette: str | list | dict = "muted",
     split: bool = True,
@@ -301,8 +301,8 @@ def plot_map_vs_test_pearson_violin(
     plt.figure(figsize=(5, 5))
     ax = plt.axes()
     out = sns.violinplot(
-        x=canon_label_ass_key,
-        y=ass_pearson_key,
+        x=canon_label_asgd_key,
+        y=asgd_pearson_key,
         hue=hue_key,
         data=df_vp,
         palette=palette,
@@ -330,7 +330,7 @@ def plot_map_vs_test_cluster_fractions(
     title: str | None = None,
     map_name: str = "Map",
     test_name: str = "Test",
-    canon_label_ass_key: str = "canon_label_ass",
+    canon_label_asgd_key: str = "canon_label_asgd",
     save: bool | str = False,
     show: bool = True,
     log: bool = False,
@@ -351,12 +351,12 @@ def plot_map_vs_test_cluster_fractions(
         ipython_format="png2x",
     )
 
-    map_freqs = helpers.calc_frequencies(adata_map, canon_label_ass_key, return_as="df")
-    ass_clust_freqs = helpers.calc_frequencies(
-        adata_test, canon_label_ass_key, return_as="df"
+    map_freqs = helpers.calc_frequencies(adata_map, canon_label_asgd_key, return_as="df")
+    asgd_clust_freqs = helpers.calc_frequencies(
+        adata_test, canon_label_asgd_key, return_as="df"
     )
-    ass_clust_freqs.index = [1]
-    df_fracs = pd.concat((map_freqs, ass_clust_freqs))
+    asgd_clust_freqs.index = [1]
+    df_fracs = pd.concat((map_freqs, asgd_clust_freqs))
 
     xlabel = f"{map_name} Cluster Fractions"
     ylabel = f"{test_name} Cluster Fractions"

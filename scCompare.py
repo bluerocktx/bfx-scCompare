@@ -65,7 +65,7 @@ def qc_adata_map(
             adata, color=[cluster_key], color_map=color_map, use_raw=False, show=True
         )  # need this to generate leiden_colors
 
-    adata.uns["ass_cluster_colors"] = adata.uns[f"{cluster_key}_colors"]
+    adata.uns["asgd_cluster_colors"] = adata.uns[f"{cluster_key}_colors"]
 
     return adata
 
@@ -191,14 +191,14 @@ def sc_compare(
         )
         run_params.write_log(["plots", "mapping_correlation"], thisplot)
 
-    freqs = Counter(adata_map.obs["canon_label_ass"])
+    freqs = Counter(adata_map.obs["canon_label_asgd"])
     map_freqs = pd.DataFrame(freqs, index=[0]) / len(adata_map.obs)
 
-    sc.tl.rank_genes_groups(adata_map, "canon_label_ass", use_raw=False)
+    sc.tl.rank_genes_groups(adata_map, "canon_label_asgd", use_raw=False)
     sc.tl.filter_rank_genes_groups(
         adata_map,
         key=None,
-        groupby="canon_label_ass",
+        groupby="canon_label_asgd",
         use_raw=False,
         key_added="rank_genes_groups_filtered",
         min_in_group_fraction=0.1,
@@ -228,21 +228,21 @@ def sc_compare(
 
     adata_test = adata_test.copy()
     adata_test = assign_clusters_to_cells(adata_test, bulk_sig)
-    adata_test.uns["ass_cluster_colors"] = adata_map.uns[f"{test_cluster_key}_colors"]
+    adata_test.uns["asgd_cluster_colors"] = adata_map.uns[f"{test_cluster_key}_colors"]
     adata_test = assign_class_to_cells(adata_test, stat_group_cutoff)
 
     print("Calculating cluster frequencies...", end="")
-    ass_clust_freqs = calc_frequencies(adata_test, "canon_label_ass", return_as="df")
-    run_params.write_log(["assigned_cluster_frequencies"], ass_clust_freqs)
+    asgd_clust_freqs = calc_frequencies(adata_test, "canon_label_asgd", return_as="df")
+    run_params.write_log(["assigned_cluster_frequencies"], asgd_clust_freqs)
     print("Done!")
 
     fraction_mapped_cells = 1 - np.sum(
-        adata_test.obs["canon_label_ass"] == "unmapped"
+        adata_test.obs["canon_label_asgd"] == "unmapped"
     ) / len(adata_test.obs)
     run_params.write_log(["fraction_mapped_cells"], fraction_mapped_cells)
 
-    ass_clust_freqs.index = [1]
-    df_fracs = pd.concat((map_freqs, ass_clust_freqs)).fillna(0).T.sort_values(by=0)
+    asgd_clust_freqs.index = [1]
+    df_fracs = pd.concat((map_freqs, asgd_clust_freqs)).fillna(0).T.sort_values(by=0)
     r2 = r2_score(df_fracs[0].values, df_fracs[1].values)
 
     # START CHUNK
@@ -257,23 +257,23 @@ def sc_compare(
     # problem_cluster
     if len(problem_cluster) > 0:
         adata_test = adata_test[
-            adata_test.obs["canon_label_ass"].values != problem_cluster[0], :
+            adata_test.obs["canon_label_asgd"].values != problem_cluster[0], :
         ]
 
     # END CHUNK
 
     print(
         "fraction mapped cells = " + str(fraction_mapped_cells)
-    )  # adata_msk.obs['ass_pearson'].min()))
+    )
     run_params.write_log(["fraction_mapped_calls"], fraction_mapped_cells)
     print("r2 score = " + str(r2))
     run_params.write_log(["r2_score"], r2)
 
-    sc.tl.rank_genes_groups(adata_test, "canon_label_ass", use_raw=False)
+    sc.tl.rank_genes_groups(adata_test, "canon_label_asgd", use_raw=False)
     sc.tl.filter_rank_genes_groups(
         adata_test,
         key=None,
-        groupby="canon_label_ass",
+        groupby="canon_label_asgd",
         use_raw=False,
         key_added="rank_genes_groups_filtered",
         min_in_group_fraction=0.1,
@@ -287,8 +287,8 @@ def sc_compare(
 
     # Block 18
 
-    ass_clust_fracts = calc_assigned_cluster_fracs(adata_test, adata_map)
-    run_params.write_log(["assigned_cluster_fractions"], ass_clust_fracts)
+    asgd_clust_fracts = calc_assigned_cluster_fracs(adata_test, adata_map)
+    run_params.write_log(["assigned_cluster_fractions"], asgd_clust_fracts)
 
     # Block 19
 
@@ -300,7 +300,7 @@ def sc_compare(
     # Block 20
 
     combined_cluster_metrics = pd.concat(
-        (ass_clust_fracts, match_similarity_res), axis=1
+        (asgd_clust_fracts, match_similarity_res), axis=1
     )
     run_params.write_log(["combined_cluster_metrics"], combined_cluster_metrics)
 
@@ -345,11 +345,11 @@ def sc_compare(
         )
         run_params.write_log(["plots", "bulk_sig_heatmap"], thisplot)
 
-        thisplot = plots.plot_ass_pearson_violin(
+        thisplot = plots.plot_asgd_pearson_violin(
             adata_map,
-            canon_label_ass_key=map_cluster_key,
+            canon_label_asgd_key=map_cluster_key,
             title="Assigned Pearson violin (mapping data)",
-            save=os.path.join(plot_outdir, "ass_pearson_violin.png"),
+            save=os.path.join(plot_outdir, "asgd_pearson_violin.png"),
             show=show_plots,
         )
         run_params.write_log(["plots", "assigned_pearson_violin"], thisplot)
@@ -366,7 +366,7 @@ def sc_compare(
         thisplot = plots.plot_grouped_umaps(
             adata_test,
             title="Raw and final assigned labels UMAP plot (test data)",
-            keys=["ass_cluster", "canon_label_ass"],
+            keys=["asgd_cluster", "canon_label_asgd"],
             save=os.path.join(plot_outdir, "test_label_assignments_umap.png"),
             show=show_plots,
         )

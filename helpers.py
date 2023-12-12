@@ -101,7 +101,7 @@ def _reformat_adata_for_export(adata: anndata.AnnData) -> anndata.AnnData:
 
 
 def calc_silhouette_score(
-    adata: anndata.AnnData, key: str = "canon_label_ass"
+    adata: anndata.AnnData, key: str = "canon_label_asgd"
 ) -> float:
     """Calculate the silhouette score from an anndata object.
 
@@ -172,7 +172,7 @@ def calc_simple_match_similarity(
 def calc_assigned_cluster_fracs(
     adata_test: anndata.AnnData,
     adata_map: anndata.AnnData,
-    key: str = "canon_label_ass",
+    key: str = "canon_label_asgd",
 ) -> pd.DataFrame:
     """Calculate assigned cluster fractions for both mapping and testing datasets
 
@@ -182,7 +182,7 @@ def calc_assigned_cluster_fracs(
         key: column name from `adata.obs` to read cluster identities
 
     Returns:
-        ass_clust_fracts: dataframe of the fraction of of cells assigned to each cluster
+        asgd_clust_fracts: dataframe of the fraction of of cells assigned to each cluster
             per dataset
     """
 
@@ -196,11 +196,11 @@ def calc_assigned_cluster_fracs(
         map_freq.values()
     )
 
-    ass_clust_fracts = pd.concat((df_map_fracs, df_test_fracs), axis=1).sort_values(
+    asgd_clust_fracts = pd.concat((df_map_fracs, df_test_fracs), axis=1).sort_values(
         by="Mapping Cluster Fractions", ascending=False
     )
 
-    return ass_clust_fracts
+    return asgd_clust_fracts
 
 
 def get_gene_presence_in_cluster(
@@ -301,7 +301,7 @@ def calc_frequencies(
 
 
 def calc_frac_unmapped_cells(
-    adata: anndata.AnnData, key: str = "canon_label_ass"
+    adata: anndata.AnnData, key: str = "canon_label_asgd"
 ) -> float:
     """Calculate the fraction of unmapped cells resulting from an scCompare classification.
 
@@ -320,7 +320,7 @@ def calc_frac_unmapped_cells(
 
 
 def calc_frac_misclassified_cells(
-    adata: anndata.AnnData, key1: str = "leiden", key2: str = "canon_label_ass"
+    adata: anndata.AnnData, key1: str = "leiden", key2: str = "canon_label_asgd"
 ) -> float:
     """Calculate the number of misclassified cells.
 
@@ -341,7 +341,7 @@ def calc_frac_misclassified_cells(
 
 
 def assign_class_to_cells(
-    adata: anndata.AnnData, stat_group_cutoff: float, outkey: str = "canon_label_ass"
+    adata: anndata.AnnData, stat_group_cutoff: float, outkey: str = "canon_label_asgd"
 ) -> anndata.AnnData:
     """Assigns a class to cells based on `stat_group_cutoff`.
 
@@ -359,7 +359,7 @@ def assign_class_to_cells(
 
     out = [
         y if x > stat_group_cutoff[y] else "unmapped"
-        for x, y in zip(adata.obs["ass_pearson"], adata.obs["ass_cluster"])
+        for x, y in zip(adata.obs["asgd_pearson"], adata.obs["asgd_cluster"])
     ]
     adata.obs[outkey] = out
 
@@ -367,8 +367,8 @@ def assign_class_to_cells(
 
 
 def derive_aggregate_metric_map(adata: anndata.AnnData, stat_cutoff: float) -> float:
-    pearson_avg = adata.obs["ass_pearson"].sum() / len(adata.obs)
-    pearson_met = 1 - (np.sum(adata.obs["ass_pearson"] < stat_cutoff) / len(adata.obs))
+    pearson_avg = adata.obs["asgd_pearson"].sum() / len(adata.obs)
+    pearson_met = 1 - (np.sum(adata.obs["asgd_pearson"] < stat_cutoff) / len(adata.obs))
     agg_met_map = pearson_avg * pearson_met
 
     return agg_met_map
@@ -385,15 +385,15 @@ def derive_statistical_cutoff(adata: anndata.AnnData, n_mads: float = 3):
         Statistical cutoff
     """
 
-    lower = adata.obs["ass_pearson"][
-        adata.obs["ass_pearson"] < adata.obs["ass_pearson"].median()
+    lower = adata.obs["asgd_pearson"][
+        adata.obs["asgd_pearson"] < adata.obs["asgd_pearson"].median()
     ]
     scale = 1 / (
-        adata.obs["ass_pearson"].std()
-        / stats.median_abs_deviation(adata.obs["ass_pearson"], scale=1)
+        adata.obs["asgd_pearson"].std()
+        / stats.median_abs_deviation(adata.obs["asgd_pearson"], scale=1)
     )
     stat_cutoff = adata.obs[
-        "ass_pearson"
+        "asgd_pearson"
     ].median() - n_mads * stats.median_abs_deviation(lower, scale=scale)
 
     return stat_cutoff
@@ -410,7 +410,7 @@ def assign_clusters_to_cells(
         subset_unique: whether or not to subset highly variable genes
 
     Returns:
-        Returns the same `adata` object with added `ass_pearson` and `ass_cluster`
+        Returns the same `adata` object with added `asgd_pearson` and `asgd_cluster`
         columns to `adata.obs`
     """
 
@@ -437,15 +437,15 @@ def assign_clusters_to_cells(
         adata_temp = adata.copy()
 
     # For each cell, find which cluster it most correlates with and assign the value to
-    # ass_pearson and the cluster to ass_cluster
-    ass_cluster = []
-    ass_pearson = []
+    # asgd_pearson and the cluster to asgd_cluster
+    asgd_cluster = []
+    asgd_pearson = []
     for i in range(len(adata_temp.obs.index)):
-        ass_cluster.append(corr_cluster.iloc[i].sort_values().index[-1])
-        ass_pearson.append(corr_cluster.iloc[i].sort_values()[-1])
+        asgd_cluster.append(corr_cluster.iloc[i].sort_values().index[-1])
+        asgd_pearson.append(corr_cluster.iloc[i].sort_values()[-1])
 
-    adata.obs["ass_cluster"] = ass_cluster
-    adata.obs["ass_pearson"] = ass_pearson
+    adata.obs["asgd_cluster"] = asgd_cluster
+    adata.obs["asgd_pearson"] = asgd_pearson
 
     return adata
 
@@ -511,7 +511,7 @@ def derive_statistical_group_cutoff(
         stat_group_cutoff = {}
         n_mads = mads[i]
         for i in range(len(leiden_clusters)):
-            group = adata_map.obs["ass_pearson"][
+            group = adata_map.obs["asgd_pearson"][
                 adata_map.obs[cluster_key] == leiden_clusters[i]
             ]
             lower = group[group < group.median()]
@@ -521,18 +521,18 @@ def derive_statistical_group_cutoff(
             )  #
             stat_group_cutoff[leiden_clusters[i]] = stat_cutoff
 
-        canon_label_ass = []
+        canon_label_asgd = []
         for i in range(len(adata_map.obs)):
             if (
-                adata_map.obs["ass_pearson"][i]
-                > stat_group_cutoff[adata_map.obs["ass_cluster"][i]]
+                adata_map.obs["asgd_pearson"][i]
+                > stat_group_cutoff[adata_map.obs["asgd_cluster"][i]]
             ):
-                canon_label_ass.append(adata_map.obs["ass_cluster"][i])
+                canon_label_asgd.append(adata_map.obs["asgd_cluster"][i])
             else:
-                canon_label_ass.append("unmapped")
-        adata_map.obs["canon_label_ass"] = canon_label_ass
+                canon_label_asgd.append("unmapped")
+        adata_map.obs["canon_label_asgd"] = canon_label_asgd
         gt = list(adata_map.obs[cluster_key].values)
-        gd = list(adata_map.obs["canon_label_ass"].values)
+        gd = list(adata_map.obs["canon_label_asgd"].values)
         num_mis_clas = 0
         for i in range(len(gt)):
             if gt[i] != gd[i]:
@@ -565,7 +565,7 @@ def derive_statistical_group_cutoff(
         plt.show()
 
     for i in range(len(leiden_clusters)):
-        group = adata_map.obs["ass_pearson"][
+        group = adata_map.obs["asgd_pearson"][
             adata_map.obs[cluster_key] == leiden_clusters[i]
         ]
         lower = group[group < group.median()]
