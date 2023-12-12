@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from collections import Counter
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -75,7 +73,7 @@ def plot_confusion_matrix(
         format="pdf",
         facecolor=None,
         transparent=True,
-    )  # , ipython_format='png2x')
+    )
 
     if "highly_variable" not in adata.var:
         error_text = (
@@ -261,7 +259,7 @@ def plot_grouped_umaps(
         format="pdf",
         facecolor=None,
         transparent=True,
-    )  # , ipython_format='png2x')
+    )
 
     default_kwgs = {
         "use_raw": False,
@@ -351,7 +349,9 @@ def plot_map_vs_test_cluster_fractions(
         ipython_format="png2x",
     )
 
-    map_freqs = helpers.calc_frequencies(adata_map, canon_label_asgd_key, return_as="df")
+    map_freqs = helpers.calc_frequencies(
+        adata_map, canon_label_asgd_key, return_as="df"
+    )
     asgd_clust_freqs = helpers.calc_frequencies(
         adata_test, canon_label_asgd_key, return_as="df"
     )

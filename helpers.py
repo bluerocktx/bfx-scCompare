@@ -30,17 +30,13 @@ def generate_mapping_adata_noUMAP(
 
     X_log2 = adata_map.copy().X
     sc.pp.scale(adata_map)
-    # Computes PCA coordinates, loadings and variance decomposition, excludes highly
-    # variable genes
     sc.tl.pca(adata_map, use_highly_variable=True)
 
     thresholds = np.linspace(0, 49, 50)
     curve = np.cumsum(list(adata.uns["pca"]["variance_ratio"]))
-    # thresholds
     kneedle = KneeLocator(
         thresholds, curve, S=1.0, curve="concave", direction="increasing"
     )
-    # kneedle.knee
 
     adata_map.X = X_log2
     if len(include) > 1:
@@ -182,8 +178,8 @@ def calc_assigned_cluster_fracs(
         key: column name from `adata.obs` to read cluster identities
 
     Returns:
-        asgd_clust_fracts: dataframe of the fraction of of cells assigned to each cluster
-            per dataset
+        asgd_clust_fracts: dataframe of the fraction of of cells assigned to each
+            cluster per dataset
     """
 
     test_freq = Counter(adata_test.obs[key])
@@ -230,7 +226,6 @@ def get_gene_presence_in_cluster(
 
     bin_genes_df = pd.DataFrame(bin_genes_dict).T
     bin_genes_df.columns = cluster_genes_for_bin.columns
-    # bin_genes_df_test.columns = ["test_"+x for x in cluster_genes_for_bin.columns]
 
     return bin_genes_df
 
@@ -320,7 +315,7 @@ def calc_frac_unmapped_cells(
 
 
 def calc_frac_misclassified_cells(
-    adata: anndata.AnnData, key1: str = "leiden", key2: str = "canon_label_asgd"
+    adata: anndata.AnnData, key1: str, key2: str = "canon_label_asgd"
 ) -> float:
     """Calculate the number of misclassified cells.
 
@@ -518,7 +513,7 @@ def derive_statistical_group_cutoff(
             scale = 1 / (group.std() / stats.median_abs_deviation(group, scale=1))
             stat_cutoff = group.median() - n_mads * stats.median_abs_deviation(
                 lower, scale=scale
-            )  #
+            )
             stat_group_cutoff[leiden_clusters[i]] = stat_cutoff
 
         canon_label_asgd = []

@@ -63,7 +63,7 @@ def qc_adata_map(
     if f"{cluster_key}_colors" not in adata.uns:
         sc.pl.umap(
             adata, color=[cluster_key], color_map=color_map, use_raw=False, show=True
-        )  # need this to generate leiden_colors
+        )  # need this to generate cluster_key colors column
 
     adata.uns["asgd_cluster_colors"] = adata.uns[f"{cluster_key}_colors"]
 
@@ -84,7 +84,6 @@ def sc_compare(
     test_cluster_key: str = "leiden",
     n_mad_floor: float = 5,
     n_mad: float = 0,
-    color_map: str = "RdYlBu_r",
     make_plots: bool = True,
     show_plots: bool = True,
 ) -> AnnData:
@@ -100,7 +99,6 @@ def sc_compare(
             dataset
         n_mad_floor: lowest MAD to be used before it is automatically calculated
         n_mad: Number of MADs to use for cutoff calculation
-        color_map: Color map to use for plots
         make_plots: Make the plots?
 
     Returns:
@@ -213,17 +211,6 @@ def sc_compare(
     bin_genes_df_map = get_gene_presence_in_cluster(adata_map)
     run_params.write_log(["bin_genes_df_map"], bin_genes_df_map)
 
-    colordict = {
-        "mDA Neuron": "#8c564b",
-        "Off-Target Neuronal Mix": "#2ca02c",
-        "Transitioning SOX2(+) Neuronal Progenitor": "#9467bd",
-        "SOX2(+) Neuronal Progenitor": "#d62728",
-        "unmapped": "#e377c2",
-        "CRABP1(+) Neuronal Off-Target": "#1f77b4",
-        "Cycling Neuronal Progenitor": "#ff7f0e",
-    }
-    run_params.write_log(["colordict"], colordict)
-
     # Main workflow
 
     adata_test = adata_test.copy()
@@ -245,7 +232,6 @@ def sc_compare(
     df_fracs = pd.concat((map_freqs, asgd_clust_freqs)).fillna(0).T.sort_values(by=0)
     r2 = r2_score(df_fracs[0].values, df_fracs[1].values)
 
-    # START CHUNK
     # This removes cells classified to a class that has only 1 cell classified as it.
     # This is because scanpy.rank_genes_groups will throw an error if only one class
 
@@ -254,17 +240,12 @@ def sc_compare(
     for i in range(len(fkeys)):
         if freqs[fkeys[i]] == 1:
             problem_cluster.append(fkeys[i])
-    # problem_cluster
     if len(problem_cluster) > 0:
         adata_test = adata_test[
             adata_test.obs["canon_label_asgd"].values != problem_cluster[0], :
         ]
 
-    # END CHUNK
-
-    print(
-        "fraction mapped cells = " + str(fraction_mapped_cells)
-    )
+    print("fraction mapped cells = " + str(fraction_mapped_cells))
     run_params.write_log(["fraction_mapped_calls"], fraction_mapped_cells)
     print("r2 score = " + str(r2))
     run_params.write_log(["r2_score"], r2)
@@ -285,26 +266,19 @@ def sc_compare(
     bin_genes_df_test = get_gene_presence_in_cluster(adata_test)
     run_params.write_log(["adata_test_gene_presence_in_cluster"], bin_genes_df_test)
 
-    # Block 18
-
     asgd_clust_fracts = calc_assigned_cluster_fracs(adata_test, adata_map)
     run_params.write_log(["assigned_cluster_fractions"], asgd_clust_fracts)
-
-    # Block 19
 
     match_similarity_res = calc_simple_match_similarity(
         bin_genes_df_map, bin_genes_df_test
     )
     run_params.write_log(["simple_match_similarity"], match_similarity_res)
 
-    # Block 20
-
     combined_cluster_metrics = pd.concat(
         (asgd_clust_fracts, match_similarity_res), axis=1
     )
     run_params.write_log(["combined_cluster_metrics"], combined_cluster_metrics)
 
-    # Block 21
     mapping_frac_mapped = 1 - calc_frac_unmapped_cells(adata_map)
     df_frac_mapped_compare = pd.DataFrame(
         [mapping_frac_mapped, fraction_mapped_cells],
@@ -313,17 +287,12 @@ def sc_compare(
     )
     run_params.write_log(["df_frac_mapped_compare"], df_frac_mapped_compare)
 
-    # Block 22
     df_sil_score_compare = pd.DataFrame(
         [calc_silhouette_score(adata_test), calc_silhouette_score(adata_map)],
         index=["Map", "Test"],
         columns=["Silhouette Score"],
     )
     run_params.write_log(["silhouette_score_comparison"], df_sil_score_compare)
-
-    ##########
-    # PLOTS
-    ##########
 
     if make_plots:
         print("Generating plots")
