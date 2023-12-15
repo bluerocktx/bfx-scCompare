@@ -5,12 +5,27 @@ requires = ["hatchling>=1.8.0"]
 [project]
 name = "scCompare"
 description = "Compare 2 single-cell RNAseq datasets"
-license = { text = "MIT" }
+version = "0.1.0"
+license = { text = "BSD-3" }
+dependencies = [
+    "anndata>=0.8",
+    "kneed>=0.8",
+    "matplotlib>=3.7",
+    "numpy>=1.23",
+    "pandas>=1.5",
+    "scanpy>=1.9",
+    "scikit-learn>=1.2",
+    "scipy>=1.10",
+    "seaborn >= 0.12, != 0.13.0",
+]
 requires-python = ">=3.8"
 authors = [
-    {name = "Dan Wilkinson", email = "dwilkinson@bluerocktx.com"},
-    {name = "Elizabeth Tallman", email = "epereira@bluerocktx.com"},
-    {name = "Mishal Ashraf", email = "mashraf@bluerocktx.com"},
-    {name = "Ben Burnett", email = "bburnett@bluerocktx.com"},
-    {name = "Tatiana Gelaf Romer", email="tgelafromer@bluerocktx.com"}
+    { name = "Dan Wilkinson", email = "dwilkinson@bluerocktx.com" },
+    { name = "Elizabeth Tallman", email = "epereira@bluerocktx.com" },
+    { name = "Mishal Ashraf", email = "mashraf@bluerocktx.com" },
+    { name = "Ben Burnett", email = "bburnett@bluerocktx.com" },
+    { name = "Tatiana Gelaf Romer", email = "tgelafromer@bluerocktx.com" },
 ]
+
+[tool.hatch.build.targets.wheel]
+packages=["scCompare"]
