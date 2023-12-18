@@ -25,6 +25,7 @@ authors = [
     { name = "Mishal Ashraf", email = "mashraf@bluerocktx.com" },
     { name = "Ben Burnett", email = "bburnett@bluerocktx.com" },
     { name = "Tatiana Gelaf Romer", email = "tgelafromer@bluerocktx.com" },
+    { name = "Pierre Bushel", email = "pbushel@bluerocktx.com" }
 ]
 
 [tool.hatch.build.targets.wheel]
