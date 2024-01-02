@@ -5,12 +5,12 @@ import os
 from collections import Counter
 from warnings import warn
 
-import numpy as np
-import pandas as pd
 import scanpy as sc
 from anndata import AnnData
 from sklearn.metrics import r2_score
 
+import numpy as np
+import pandas as pd
 from scCompare import plots
 from scCompare.helpers import (
     _reformat_adata_for_export,
@@ -30,26 +30,55 @@ from scCompare.helpers import (
 from scCompare.logger import InternalLogger
 
 
-def qc_adata(adata: AnnData, cluster_key: str):
+def enforce_grouping_key(adata: AnnData, grouping_key: str):
+    """Validate the grouping key exists in the adata object.
+
+    Args:
+        adata: The object to QC.
+        grouping_key: They key with the ground truth groupings.
+
+    Raises:
+        KeyError: if the `grouping_key` is not in `adata.obs`.
+    """
     run_params = InternalLogger()
 
-    if cluster_key not in adata.obs:
-        error_text = f"""The cluster key `{cluster_key}` was not found in `obs`. cluster_key needs to be
-        a column in obs that defines the cluster for each cell.
-        """
+    if grouping_key not in adata.obs:
+        error_text = (
+            f"The grouping key `{grouping_key}` was not found in `obs`. `grouping_key` "
+            "needs to be a column in obs that defines the grouping for each cell."
+        )
         raise KeyError(error_text)
 
-    if cluster_key not in adata.uns:
-        warning_text = f"""{cluster_key} not found in `uns`. Metadata about the clustering in {cluster_key}
-        can not be saved."""
+    if grouping_key not in adata.uns:
+        warning_text = (
+            f"{grouping_key} not found in `uns`. Metadata about the clustering in "
+            f"{grouping_key} can not be saved."
+        )
         warn(warning_text)
         run_params.write_warning(warning_text)
 
 
 def qc_adata_map(
-    adata: AnnData, cluster_key: str, color_map: str = "RdYlBu_r"
+    adata: AnnData, grouping_key: str, color_map: str = "RdYlBu_r"
 ) -> AnnData:
-    qc_adata(adata, cluster_key)
+    """Ensure the object can be used as the mapping object in `sc_compare`.
+
+    Checks that proper preprocessing has been done and the appropriate structures are
+    defined.
+
+    Args:
+        adata: The object to QC.
+        grouping_key: The key defining the ground truth groupings.
+        color_map (optional): The color map to use. Default = "RdYlBu_r".
+
+    Returns:
+        The adata object, with the grouping key colors added if they did not already
+            exist.
+
+    Raises:
+        KeyError: if the `grouping_key` is not in `adata.obs`.
+    """
+    enforce_grouping_key(adata, grouping_key)
     adata.obs["control_vs_experimental"] = "control"
 
     if "highly_variable" not in adata.var:
@@ -60,17 +89,26 @@ def qc_adata_map(
         )
         raise KeyError(error_text)
 
-    if f"{cluster_key}_colors" not in adata.uns:
+    if f"{grouping_key}_colors" not in adata.uns:
         sc.pl.umap(
-            adata, color=[cluster_key], color_map=color_map, use_raw=False, show=True
+            adata, color=[grouping_key], color_map=color_map, use_raw=False, show=True
         )  # need this to generate cluster_key colors column
 
-    adata.uns["asgd_cluster_colors"] = adata.uns[f"{cluster_key}_colors"]
+    adata.uns["asgd_cluster_colors"] = adata.uns[f"{grouping_key}_colors"]
 
     return adata
 
 
-def qc_adata_test(adata: AnnData, cluster_key: str) -> AnnData:
+def qc_adata_test(adata: AnnData) -> AnnData:
+    """Ensure the object can be used as the test object in `sc_compare`.
+
+    Args:
+        adata: The object to QC.
+
+    Returns:
+        The prepared object.
+    """
+
     adata.obs["control_vs_experimental"] = "testing"
 
     return adata
@@ -87,24 +125,29 @@ def sc_compare(
     make_plots: bool = True,
     show_plots: bool = True,
 ) -> AnnData:
-    """Run the scCompare pipeline
+    """Run the scCompare pipeline.
+
+    This function takes a "mapping" and "test" adata objects. The mapping object must
+    have a set of gropuings defined in the `obs`. The similarity of the test object to
+    the mapping object is then assessed by finding how the distribution of cells
+    assigned to each grouping compare between the two datasets.
 
     Args:
-        adata_test: test dataset to compare to the mapping dataset
-        adata_map: mapping dataset that the test dataset will be mapped onto
-        outdir: path to output directory
+        adata_test: Test dataset to compare to the mapping dataset.
+        adata_map: Mapping dataset that the test dataset will be mapped onto.
+        outdir: Path to output directory.
         map_cluster_key: adata.obs column name containing cluster IDs for the mapping
-            dataset
+            dataset.
         test_cluster_key (optional): adata.obs column name containing cluster IDs for
             the test dataset. Defaults to same as `map_cluster_key`.
         n_mad_floor (optional): lowest MAD to be used before it is automatically
-            calculated. Default: 5.
-        n_mad (optional): Number of MADs to use for cutoff calculation. If set to 0, will
-            be statistically calculated by finding the knee. Default: 0
-        make_plots (optional): Make the plots?. Default: False.
+            calculated. Default = 5.
+        n_mad (optional): Number of MADs to use for cutoff calculation. If set to 0,
+            will be statistically calculated by finding the knee. Default = 0.
+        make_plots (optional): Make the plots?. Default = `False`.
 
     Returns:
-        adata_test object with additional annotations provided by scCompare pipeline
+        adata_test object with additional annotations provided by scCompare pipeline.
     """
 
     if test_cluster_key is None:
@@ -117,7 +160,7 @@ def sc_compare(
         adata_map = sc.read_h5ad(adata_map)
 
     print("Running QC on adata objects...", end="")
-    adata_test = qc_adata_test(adata_test, test_cluster_key)
+    adata_test = qc_adata_test(adata_test)
     adata_map = qc_adata_map(adata_map, map_cluster_key)
     print("Done!")
     print("adata objects pass QC!")

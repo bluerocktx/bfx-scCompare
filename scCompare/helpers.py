@@ -3,70 +3,25 @@ from __future__ import annotations
 from collections import Counter
 
 import anndata
+import sklearn
+from kneed import KneeLocator
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import scanpy as sc
-import scanpy.external as sce
-import sklearn
-from kneed import KneeLocator
-from scipy import stats
-
 from scCompare.logger import InternalLogger
-
-
-def generate_mapping_adata_noUMAP(
-    adata: anndata.AnnData, include: list, n_neighbors: int = 100, resolution=1
-) -> anndata.AnnData:
-    inc_bat = []
-    for i in range(len(adata.obs["batch_id"])):
-        if adata.obs["batch_id"][i] in include:
-            inc_bat.append(True)
-        else:
-            inc_bat.append(False)
-    adata_map = adata.copy()[inc_bat]
-
-    sc.pp.highly_variable_genes(adata_map, min_mean=0.5, max_mean=8, min_disp=1.5)
-
-    X_log2 = adata_map.copy().X
-    sc.pp.scale(adata_map)
-    sc.tl.pca(adata_map, use_highly_variable=True)
-
-    thresholds = np.linspace(0, 49, 50)
-    curve = np.cumsum(list(adata.uns["pca"]["variance_ratio"]))
-    kneedle = KneeLocator(
-        thresholds, curve, S=1.0, curve="concave", direction="increasing"
-    )
-
-    adata_map.X = X_log2
-    if len(include) > 1:
-        sce.pp.harmony_integrate(
-            adata_map, "batch_id", basis="X_pca", adjusted_basis="X_pca_harmony"
-        )
-        sc.pp.neighbors(
-            adata_map,
-            n_neighbors=n_neighbors,
-            n_pcs=int(kneedle.knee),
-            use_rep="X_pca_harmony",
-        )
-    else:
-        sc.pp.neighbors(
-            adata_map,
-            n_neighbors=n_neighbors,
-            n_pcs=int(kneedle.knee),
-            use_rep="X_pca_harmony",
-        )
-
-    sc.tl.leiden(adata_map, resolution=resolution)
-
-    return adata_map
+from scipy import stats
 
 
 def _reformat_adata_for_export(adata: anndata.AnnData) -> anndata.AnnData:
-    """Reformat adata object to prepare for export
+    """Reformat scCompare-produced adata object to prepare for export. This involves
+    removing very large elements and cleaning NaN values.
 
-    :params: adata: adata object for reformatting
-    :returns: adata: reformatted adata object
+    Args:
+        adata: Object for reformatting.
+
+    Returns
+        Reformatted adata object.
     """
 
     keys = ["rank_genes_groups", "rank_genes_groups_filtered"]
@@ -101,12 +56,12 @@ def calc_silhouette_score(
 ) -> float:
     """Calculate the silhouette score from an anndata object.
 
-     Args:
-        data: annData object
-        key: key in adata.obs which assigns the mapping
+    Args:
+        adata: Object from which to calculate the silhouette score.
+        key: Key in adata.obs which assigns the mapping.
 
     Returns:
-        sil_score: silhouette score
+        The silhouette score.
     """
 
     select_unmapped = (adata.obs[key] != "unmapped").to_list()
@@ -121,16 +76,16 @@ def calc_simple_match_similarity(
     bin_genes_df_map: pd.DataFrame, bin_genes_df_test: pd.DataFrame
 ) -> pd.DataFrame:
     """Calculate a match similarity score between the mapping and testing genes in each
-    cluster.
+    cluster. The input dataframes should be generated from
+    `get_gene_presence_in_cluster`.
 
     Args:
-        Both dataframes are generated from `get_gene_presence_in_cluster`
-
-        bin_genes_df_map: mapping dataset df
-        bin_genes_df_test: testing dataset df
+        bin_genes_df_map: Mapping dataset df.
+        bin_genes_df_test: Testing dataset df.
 
     Returns:
-        match_similarity_res: dataframe of the match statistics
+        A single-column dataframe ("Sample Match Simarity") with results (one row per
+        column in input dataframes).
     """
 
     def match_similarity(df, col_A, col_B):
@@ -170,16 +125,15 @@ def calc_assigned_cluster_fracs(
     adata_map: anndata.AnnData,
     key: str = "canon_label_asgd",
 ) -> pd.DataFrame:
-    """Calculate assigned cluster fractions for both mapping and testing datasets
+    """Calculate assigned cluster fractions for both mapping and testing datasets.
 
     Args:
-        adata_test: test dataset
-        adata_map: mapping dataset
-        key: column name from `adata.obs` to read cluster identities
+        adata_test: Test dataset.
+        adata_map: Mapping dataset.
+        key: Column name from `adata.obs` to read cluster identities.
 
     Returns:
-        asgd_clust_fracts: dataframe of the fraction of of cells assigned to each
-            cluster per dataset
+        Dataframe of the fraction of of cells assigned to each cluster per dataset.
     """
 
     test_freq = Counter(adata_test.obs[key])
@@ -202,15 +156,15 @@ def calc_assigned_cluster_fracs(
 def get_gene_presence_in_cluster(
     adata: anndata.AnnData, uns_key: str = "rank_genes_groups_filtered"
 ) -> pd.DataFrame:
-    """Get a dataframe representing if a gene is present in a cluster
+    """Get a dataframe representing if a gene is present in a cluster.
 
     Args:
-        cluster_genes_for_bin: dataframe of differentially expressed genes per cluster
+        cluster_genes_for_bin: Dataframe of differentially expressed genes per cluster.
 
     Returns:
-        bin_genes_df_test: dataframe indicating each gene's presence as a differentially
-                expressed gene in each cluster. 1 indicates it is a differentially
-                expressed gene in that cluster. 0 indicates it is not.
+        Dataframe indicating each gene's presence as a differentially expressed gene in
+            each cluster. 1 indicates it is a differentially expressed gene in that
+            cluster. 0 indicates it is not.
     """
 
     cluster_genes_for_bin = pd.DataFrame(adata.uns[uns_key]["names"])
@@ -236,11 +190,11 @@ def get_marker_genes_per_cluster(
     """Return a dataframe of marker genes from each cluster.
 
     Args:
-        adata: anndata object after running `sc.tl.rank_genes_groups` or
-               `sc.tl.rank_genes_groups_filtered`.
+        adata: AnnData object after running `sc.tl.rank_genes_groups` or
+            `sc.tl.rank_genes_groups_filtered`.
 
     Returns:
-        df: dataframe of marker genes for each cluster
+        Dataframe of marker genes for each cluster.
     """
 
     cluster_genes = pd.DataFrame(adata.uns[uns_key]["names"]).stack()
@@ -259,12 +213,13 @@ def rename_adata_obs_values(
     have no remapping key.
 
     Args:
-        adata: adata object
-        key: name of adata.obs column
-        mapping_dict: dict of rename with key=original name and value=new name
+        adata: Object to be renamed.
+        key: Name of adata.obs column.
+        mapping_dict: Mapping to use when renaming with key=original name and value=new
+            name.
 
     Returns:
-        out: list of renamed values
+        Renamed values.
     """
 
     out = [mapping_dict[x] if x in mapping_dict else x for x in adata.obs[key]]
@@ -278,12 +233,13 @@ def calc_frequencies(
     """Calculate frequencies of items in adata.obs[key].
 
     Args:
-        adata: anndata object
-        key: adata.obs column name for calculating frequencies
-        return_as: indicates return type. Can be either 'dict' or 'df'.
+        adata: Object from which to calcualte frequencies.
+        key: adata.obs column name for calculating frequencies.
+        return_as (optional): Indicates return type. Can be either "dict" or "df".
+            Default = "dict".
 
     Returns:
-        Either a dict or pd.DataFrame of frequencies, depending on `return_as`.
+        Either a dictionary or DataFrame of frequencies, depending on `return_as`.
     """
 
     freqs = Counter(adata.obs[key])
@@ -298,14 +254,15 @@ def calc_frequencies(
 def calc_frac_unmapped_cells(
     adata: anndata.AnnData, key: str = "canon_label_asgd"
 ) -> float:
-    """Calculate the fraction of unmapped cells resulting from an scCompare classification.
+    """Calculate the fraction of unmapped cells resulting from an scCompare
+    classification.
 
     Args:
-      adata: adata object
-      key: adata.obs column name that contains the classifications
+      adata: Object from which to calculate fractions.
+      key: adata.obs column name that contains the classifications.
 
     Returns:
-      out: fraction of cells unmapped
+      Fraction of cells that are unmapped.
     """
 
     freqs = Counter(adata.obs[key])
@@ -322,12 +279,12 @@ def calc_frac_misclassified_cells(
     Finds the fraction difference between `key1` and `key2` in adata.obs.
 
     Args:
-        adata: anndata object of scRNAseq data
-        key1: first column name from adata.obs
-        key2: second column name from adata.obs
+        adata: Object to assess.
+        key1: First column name from adata.obs.
+        key2: Second column name from adata.obs.
 
     Returns:
-        Percentage of cells annoteted in `key1` that don't match in `key2`
+        Proportion of cells annotated in `key1` that don't match in `key2`.
     """
 
     n_misclassified = len(adata.obs[adata.obs[key1] != adata.obs[key2]])
@@ -344,12 +301,12 @@ def assign_class_to_cells(
     keeps that assignment. Otherwise, it is classified as "unmapped".
 
     Args:
-        adata: anndata object of scRNAseq data
-        stat_group_cutoff: Pearson score below which to label cell "unmatched"
-        outkey: `adata.obs` key to store the output
+        adata: Object to classify.
+        stat_group_cutoff: Pearson score below which to label cell "unmatched".
+        outkey: `adata.obs` key to store the output.
 
     Returns:
-        Same `adata` object with added `adata.obs[outkey]`
+        Same `adata` object with added `adata.obs[outkey]`.
     """
 
     out = [
@@ -370,14 +327,14 @@ def derive_aggregate_metric_map(adata: anndata.AnnData, stat_cutoff: float) -> f
 
 
 def derive_statistical_cutoff(adata: anndata.AnnData, n_mads: float = 3):
-    """Returns the statistical cutoff generated from the mapping dataset
+    """Returns the statistical cutoff generated from the mapping dataset.
 
     Args:
-        adata: Mapping adata object
+        adata: Mapping object.
         n_mads: The number of median absolute deviations away from the median to
-            define the cutoff
+            define the cutoff.
     Returns:
-        Statistical cutoff
+        Statistical cutoff.
     """
 
     lower = adata.obs["asgd_pearson"][
@@ -400,9 +357,10 @@ def assign_clusters_to_cells(
     """Assigns a cluster and a Pearson score to each cell based on the bulk signatures.
 
     Args:
-        adata: anndata object of scRNAseq data
-        bulk_sig: dataframe of bulk signatures
-        subset_unique: whether or not to subset highly variable genes
+        adata: Object to assign clusters to.
+        bulk_sig: DataFrame of bulk signatures.
+        subset_unique (optional): Whether or not to subset highly variable genes.
+            Default = `False`.
 
     Returns:
         Returns the same `adata` object with added `asgd_pearson` and `asgd_cluster`
@@ -451,11 +409,11 @@ def generate_bulk_sig(
     """Generate bulk signatures by cluster.
 
     Args:
-        adata: annData mapping object
-        cluster_key: the adata.obs column that contains the cluster identity
+        adata: Mapping object.
+        cluster_key: The adata.obs column that contains the cluster identity.
 
     Returns:
-        bulk_sig: dataframe of bulk signatures by cluster
+        DataFrame of bulk signatures by cluster.
     """
 
     unique_genes = list(
@@ -479,7 +437,7 @@ def generate_bulk_sig(
 
 def derive_statistical_group_cutoff(
     adata_map: anndata.AnnData,
-    cluster_key: str = "leiden",
+    cluster_key: str,
     n_mad_floor: float | None = 5,
     n_mad: float | None = None,
     show_plot: bool = True,
@@ -487,14 +445,16 @@ def derive_statistical_group_cutoff(
     """Derive the statistical cutoff for each applied group in the mapping dataset.
 
     Args:
-        adata_map: mapping dataset
-        cluster_key: adata.obs key to cluster by
-        n_mad_floor: automatically calculate MAD, but can't be lower than `n_mad_floor`
-        n_mad: use exactly this many MADs to calculate statistical cutoffs
+        adata_map: Mapping dataset.
+        cluster_key: `adata.obs` key to cluster by.
+        n_mad_floor (optional): Automatically calculate MAD, but can't be lower than
+            `n_mad_floor`. If set to `None`, no lower bound. Default = 5.
+        n_mad (optional): Use exactly this many MADs to calculate statistical cutoffs.
+            If `None`, use `n_mad_floor` and automatically calculate MAD instead.
+            Default = `None`.
 
     Returns:
-        stat_group_cutoff, canon label
-        stat_group_cutoff: cutoff values for each group
+        A mapping of cluster names to cutoff values (one for each cluster).
     """
 
     run_params = InternalLogger()
@@ -544,7 +504,7 @@ def derive_statistical_group_cutoff(
         print(f"Knee Locator Result for Number of MADs Selection: {kneedle.knee}...")
         run_params.write_log(["stat_cutoff_knee_value"], kneedle.knee)
 
-        if kneedle.knee < n_mad_floor:
+        if (n_mad_floor is not None) and (kneedle.knee < n_mad_floor):
             print(
                 f"Knee Locator Result under MAD floor, using {n_mad_floor} MADs "
                 "instead..."
