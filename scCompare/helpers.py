@@ -3,14 +3,14 @@ from __future__ import annotations
 from collections import Counter
 
 import anndata
-import sklearn
-from kneed import KneeLocator
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from scCompare.logger import InternalLogger
+import sklearn
+from kneed import KneeLocator
 from scipy import stats
+
+from scCompare.logger import InternalLogger
 
 
 def _reformat_adata_for_export(adata: anndata.AnnData) -> anndata.AnnData:

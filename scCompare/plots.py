@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-import scanpy as sc
-from anndata import AnnData
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import scanpy as sc
 import seaborn as sns
+from anndata import AnnData
 from matplotlib.axes import Axes
 from matplotlib.markers import MarkerStyle
 from matplotlib.path import Path
+
 from scCompare import helpers
 
 
