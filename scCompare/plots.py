@@ -368,16 +368,20 @@ def plot_map_vs_test_pearson_violin(
         The violin plot.
     """
     final_sns_kwargs = {
-        "hue_key": "control_vs_experimental",
         "palette": "muted",
         "split": True,
+        "hue": "control_vs_experimental",
     }
     final_sns_kwargs.update(sns_kwargs)
     df_vp = pd.concat((adata_map.obs, adata_test.obs))
     plt.figure(figsize=(5, 5))
     ax = plt.axes()
     out = sns.violinplot(
-        x=canon_label_asgd_key, y=asgd_pearson_key, data=df_vp, ax=ax, **sns_kwargs
+        x=canon_label_asgd_key,
+        y=asgd_pearson_key,
+        data=df_vp,
+        ax=ax,
+        **final_sns_kwargs,
     )
     plt.xticks(rotation=x_label_rotation)
     out.legend(loc=legend_loc)
