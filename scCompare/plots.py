@@ -216,7 +216,6 @@ def plot_asgd_pearson_violin(
         adata,
         [asgd_pearson_key],
         groupby=canon_label_asgd_key,
-        return_fig=True,
         ax=ax,
         show=False,
         **scanpy_kwargs_final,
