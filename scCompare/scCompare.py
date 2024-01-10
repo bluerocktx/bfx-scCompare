@@ -5,12 +5,12 @@ import os
 from collections import Counter
 from warnings import warn
 
+import numpy as np
+import pandas as pd
 import scanpy as sc
 from anndata import AnnData
 from sklearn.metrics import r2_score
 
-import numpy as np
-import pandas as pd
 from scCompare import plots
 from scCompare.helpers import (
     _reformat_adata_for_export,

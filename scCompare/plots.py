@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-import scanpy as sc
-from anndata import AnnData
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import scanpy as sc
 import seaborn as sns
+from anndata import AnnData
 from matplotlib.axes import Axes
 from matplotlib.markers import MarkerStyle
 from matplotlib.path import Path
+
 from scCompare import helpers
 
 
@@ -368,16 +368,20 @@ def plot_map_vs_test_pearson_violin(
         The violin plot.
     """
     final_sns_kwargs = {
-        "hue_key": "control_vs_experimental",
         "palette": "muted",
         "split": True,
+        "hue": "control_vs_experimental",
     }
     final_sns_kwargs.update(sns_kwargs)
     df_vp = pd.concat((adata_map.obs, adata_test.obs))
     plt.figure(figsize=(5, 5))
     ax = plt.axes()
     out = sns.violinplot(
-        x=canon_label_asgd_key, y=asgd_pearson_key, data=df_vp, ax=ax, **sns_kwargs
+        x=canon_label_asgd_key,
+        y=asgd_pearson_key,
+        data=df_vp,
+        ax=ax,
+        **final_sns_kwargs,
     )
     plt.xticks(rotation=x_label_rotation)
     out.legend(loc=legend_loc)
