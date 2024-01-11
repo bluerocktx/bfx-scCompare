@@ -395,7 +395,7 @@ def assign_clusters_to_cells(
     asgd_pearson = []
     for i in range(len(adata_temp.obs.index)):
         asgd_cluster.append(corr_cluster.iloc[i].sort_values().index[-1])
-        asgd_pearson.append(corr_cluster.iloc[i].sort_values()[-1])
+        asgd_pearson.append(corr_cluster.iloc[i].sort_values().iloc[-1])
 
     adata.obs["asgd_cluster"] = asgd_cluster
     adata.obs["asgd_pearson"] = asgd_pearson
@@ -478,11 +478,9 @@ def derive_statistical_group_cutoff(
 
         canon_label_asgd = []
         for i in range(len(adata_map.obs)):
-            if (
-                adata_map.obs["asgd_pearson"][i]
-                > stat_group_cutoff[adata_map.obs["asgd_cluster"][i]]
-            ):
-                canon_label_asgd.append(adata_map.obs["asgd_cluster"][i])
+            asgd_cluster = adata_map.obs["asgd_cluster"].iloc[i]
+            if adata_map.obs["asgd_pearson"].iloc[i] > stat_group_cutoff[asgd_cluster]:
+                canon_label_asgd.append(asgd_cluster)
             else:
                 canon_label_asgd.append("unmapped")
         adata_map.obs["canon_label_asgd"] = canon_label_asgd
