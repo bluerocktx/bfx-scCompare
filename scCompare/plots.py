@@ -371,6 +371,7 @@ def plot_map_vs_test_pearson_violin(
         "palette": "muted",
         "split": True,
         "hue": "control_vs_experimental",
+        "inner": None,
     }
     final_sns_kwargs.update(sns_kwargs)
     df_vp = pd.concat((adata_map.obs, adata_test.obs))

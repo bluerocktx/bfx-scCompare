@@ -64,9 +64,9 @@ def calc_silhouette_score(
         The silhouette score.
     """
 
-    select_unmapped = (adata.obs[key] != "unmapped").to_list()
+    adata_not_unmapped = adata[adata.obs[key] != "unmapped"]
     sil_score = sklearn.metrics.silhouette_score(
-        adata[select_unmapped].obsm["X_umap"], adata[select_unmapped].obs[key]
+        adata_not_unmapped.obsm["X_umap"], adata_not_unmapped.obs[key]
     )
 
     return sil_score
