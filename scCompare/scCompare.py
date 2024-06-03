@@ -122,6 +122,8 @@ def sc_compare(
     outdir: str = "./scCompare_output",
     n_mad_floor: float = 5,
     n_mad: float = 0,
+    use_fisher: bool = True,
+    alpha: float = 0.05,
     make_plots: bool = True,
     show_plots: bool = True,
 ) -> AnnData:
@@ -144,6 +146,10 @@ def sc_compare(
             calculated. Default = 5.
         n_mad (optional): Number of MADs to use for cutoff calculation. If set to 0,
             will be statistically calculated by finding the knee. Default = 0.
+        use_fisher (optional): Whether or not to use a fisher-transformed correlation to
+            derive a p-value for cutting off correlations. Default = `True`.
+        alpha (optional): P-value cutoff if using fisher transformation. Ignored if
+            `use_fisher` = `False`. Default = 0.05.
         make_plots (optional): Make the plots?. Default = `False`.
 
     Returns:
@@ -207,6 +213,8 @@ def sc_compare(
         cluster_key=map_cluster_key,
         n_mad_floor=n_mad_floor,
         n_mad=n_mad,
+        use_fisher=use_fisher,
+        alpha=alpha,
         show_plot=show_plots,
     )
     print("Done!")
