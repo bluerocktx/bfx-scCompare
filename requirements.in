@@ -3,7 +3,7 @@ kneed==0.8.2
 matplotlib==3.7.0
 numpy==1.23.5
 pandas==1.5.3
-scanpy==1.9.2
+scanpy==1.9.6
 scikit-learn==1.2.1
 scipy==1.10.1
 seaborn==0.12.2
