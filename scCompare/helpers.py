@@ -484,7 +484,9 @@ def _derive_statistical_group_cutoff_fisher(
     for cluster in clusters:
         group = adata_map.obs["asgd_pearson"][adata_map.obs[cluster_key] == cluster]
         transform = np.arctanh(group)
-        stat_group_cutoff[cluster] = transform.mean() - n_stdev * transform.std()
+        stat_group_cutoff[cluster] = np.tanh(
+            transform.mean() - n_stdev * transform.std()
+        )
 
     canon_label_asgd = []
     for i in range(len(adata_map.obs)):
