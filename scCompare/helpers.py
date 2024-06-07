@@ -439,7 +439,7 @@ def derive_statistical_group_cutoff(
     adata_map: anndata.AnnData,
     cluster_key: str,
     use_fisher: bool = False,
-    n_stdev: float = 3,
+    n_stdev: float = 2.6,
     n_mad_floor: float | None = 5,
     n_mad: float | None = None,
     show_plot: bool = True,
@@ -452,7 +452,7 @@ def derive_statistical_group_cutoff(
         use_fisher (optional): Whether or not to use a fisher-transformed correlation to
             derive a threshold for cutting off correlations. Default = `False`.
         n_stdev (optional): Standard deviation cutoff if using fisher transformation.
-            Ignored if `use_fisher` = `False`. Default = 3.
+            Ignored if `use_fisher` = `False`. Default = 2.6.
         n_mad_floor (optional): Automatically calculate MAD, but can't be lower than
             `n_mad_floor`. If set to `None`, no lower bound. Default = 5.
         n_mad (optional): Use exactly this many MADs to calculate statistical cutoffs.

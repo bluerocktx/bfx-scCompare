@@ -123,7 +123,7 @@ def sc_compare(
     n_mad_floor: float = 5,
     n_mad: float = 0,
     use_fisher: bool = False,
-    n_stdev: float = 3,
+    n_stdev: float = 2.6,
     make_plots: bool = True,
     show_plots: bool = True,
 ) -> AnnData:
@@ -149,7 +149,7 @@ def sc_compare(
         use_fisher (optional): Whether or not to use a fisher-transformed correlation to
             derive a value for cutting off correlations. Default = `True`.
         n_stdev (optional): Standard deviation cutoff if using fisher transformation.
-            Ignored if `use_fisher` = `False`. Default = 3.
+            Ignored if `use_fisher` = `False`. Default = 2.6.
         make_plots (optional): Make the plots?. Default = `False`.
 
     Returns:
