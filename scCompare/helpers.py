@@ -438,8 +438,8 @@ def generate_bulk_sig(
 def derive_statistical_group_cutoff(
     adata_map: anndata.AnnData,
     cluster_key: str,
-    use_fisher: bool = True,
-    alpha: float = 0.05,
+    use_fisher: bool = False,
+    n_stdev: float = 3,
     n_mad_floor: float | None = 5,
     n_mad: float | None = None,
     show_plot: bool = True,
@@ -450,9 +450,9 @@ def derive_statistical_group_cutoff(
         adata_map: Mapping dataset.
         cluster_key: `adata.obs` key to cluster by.
         use_fisher (optional): Whether or not to use a fisher-transformed correlation to
-            derive a p-value for cutting off correlations. Default = `True`.
-        alpha (optional): P-value cutoff if using fisher transformation. Ignored if
-            `use_fisher` = `False`. Default = 0.05.
+            derive a threshold for cutting off correlations. Default = `False`.
+        n_stdev (optional): Standard deviation cutoff if using fisher transformation.
+            Ignored if `use_fisher` = `False`. Default = 3.
         n_mad_floor (optional): Automatically calculate MAD, but can't be lower than
             `n_mad_floor`. If set to `None`, no lower bound. Default = 5.
         n_mad (optional): Use exactly this many MADs to calculate statistical cutoffs.
@@ -467,33 +467,24 @@ def derive_statistical_group_cutoff(
             adata_map, cluster_key, n_mad_floor, n_mad, show_plot
         )
 
-    return _derive_statistical_group_cutoff_fisher(
-        adata_map, cluster_key, alpha
-    )
+    return _derive_statistical_group_cutoff_fisher(adata_map, cluster_key, n_stdev)
 
 
 def _derive_statistical_group_cutoff_fisher(
     adata_map: anndata.AnnData,
     cluster_key: str,
-    alpha: float,
+    n_stdev: float,
 ) -> dict[str, float]:
     print(
-        "Using Z-transformed Pearson Correlation P-value for mapping threshold (alpha: "
-        f"{alpha})"
+        "Using Z-transformed Pearson Correlation stdev for mapping threshold (stdev: "
+        f"{n_stdev})"
     )
     clusters = adata_map.obs[cluster_key].unique()
     stat_group_cutoff = {}
     for cluster in clusters:
         group = adata_map.obs["asgd_pearson"][adata_map.obs[cluster_key] == cluster]
         transform = np.arctanh(group)
-        n = len(transform)
-        ci = stats.t.interval(
-            confidence=1 - (alpha * 2), # Multiply by 2 because the CI should be one-sided
-            df=n - 1,
-            loc=np.mean(transform),
-            scale=np.std(transform, ddof=1)# / np.sqrt(n),
-        )
-        stat_group_cutoff[cluster] = np.tanh(ci[0])
+        stat_group_cutoff[cluster] = transform.mean() - n_stdev * transform.std()
 
     canon_label_asgd = []
     for i in range(len(adata_map.obs)):
