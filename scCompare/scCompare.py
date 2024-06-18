@@ -84,7 +84,9 @@ def qc_adata_map(
     grouping_key_counts = adata.obs[grouping_key].value_counts()
     insuff_keys = grouping_key_counts.loc[grouping_key_counts < 2].index.tolist()
     if len(insuff_keys) != 0:
-        do_something = 1
+        warning_text = f"keys containing insufficient cells to estimate a distribution will be dropped:{insuff_keys}"
+        warn(warning_text, RuntimeWarning)
+        adata = adata[~adata.obs['canon_label_asgd'].isin(insuff_keys)]
         
     if "highly_variable" not in adata.var:
         error_text = (
