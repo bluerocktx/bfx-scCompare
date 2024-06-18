@@ -81,6 +81,11 @@ def qc_adata_map(
     enforce_grouping_key(adata, grouping_key)
     adata.obs["control_vs_experimental"] = "control"
 
+    grouping_key_counts = adata.obs[grouping_key].value_counts()
+    insuff_keys = grouping_key_counts.loc[grouping_key_counts < 2].index.tolist()
+    if len(insuff_keys) != 0:
+        do_something = 1
+        
     if "highly_variable" not in adata.var:
         error_text = (
             "`highly_variable` not found in adata_map.var. "
@@ -216,6 +221,15 @@ def sc_compare(
     adata_map = assign_class_to_cells(adata_map, stat_group_cutoff=stat_group_cutoff)
     print("Done!")
 
+    map_postthresh_grp_counts = adata_map.obs['canon_label_asgd'].value_counts()
+    insufficient_postthresh_cells = map_postthresh_grp_counts.loc[map_postthresh_grp_counts < 2].index.tolist()
+
+    if len(insufficient_postthresh_cells) != 0:
+        print(f"Categories with less than 2 cells passing thresholding will be excluded from process: {insufficient_postthresh_cells}")
+        adata_map = adata_map[~adata_map.obs['canon_label_asgd'].isin(insufficient_postthresh_cells)]
+        bulk_sig.drop(insufficient_postthresh_cells,axis=1,inplace=True)
+        for k in insufficient_postthresh_cells:
+            del stat_group_cutoff[k]
     # PLOTS AND METRICS FOR MAPPING DATASET
 
     print("Calculating mapping metrics...", end="")
