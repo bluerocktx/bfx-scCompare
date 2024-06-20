@@ -300,15 +300,14 @@ def sc_compare(
     # This removes cells classified to a class that has only 1 cell classified as it.
     # This is because scanpy.rank_genes_groups will throw an error if only one class
 
-    fkeys = list(freqs.keys())
-    problem_cluster = []
-    for i in range(len(fkeys)):
-        if freqs[fkeys[i]] == 1:
-            problem_cluster.append(fkeys[i])
-    if len(problem_cluster) > 0:
-        adata_test = adata_test[
-            adata_test.obs["canon_label_asgd"].values != problem_cluster[0], :
-        ]
+    test_postthresh_grp_counts = adata_test.obs['canon_label_asgd'].value_counts()
+    insufficient_postthresh_cells = test_postthresh_grp_counts.loc[test_postthresh_grp_counts < 2].index.tolist()
+
+    if len(insufficient_postthresh_cells) != 0:
+        warning_text = f"Categories with less than 2 cells passing thresholding will be excluded from process: {insufficient_postthresh_cells}"
+        warn(warning_text, RuntimeWarning)
+        adata_test = adata_test[~adata_test.obs['canon_label_asgd'].isin(insufficient_postthresh_cells)]
+
 
     print("fraction mapped cells = " + str(fraction_mapped_cells))
     run_params.write_log(["fraction_mapped_calls"], fraction_mapped_cells)
