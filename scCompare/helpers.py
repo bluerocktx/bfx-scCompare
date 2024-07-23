@@ -454,10 +454,11 @@ def derive_statistical_group_cutoff(
         n_stdev (optional): Standard deviation cutoff if using fisher transformation.
             Ignored if `use_fisher` = `False`. Default = 2.6.
         n_mad_floor (optional): Automatically calculate MAD, but can't be lower than
-            `n_mad_floor`. If set to `None`, no lower bound. Default = 5.
+            `n_mad_floor`. If set to `None`, no lower bound. Ignored if
+            `use_fisher = True`. Default = 5.
         n_mad (optional): Use exactly this many MADs to calculate statistical cutoffs.
             If `None`, use `n_mad_floor` and automatically calculate MAD instead.
-            Default = `None`.
+            Ignored if `use_fisher = True`. Default = `None`.
 
     Returns:
         A mapping of cluster names to cutoff values (one for each cluster).
