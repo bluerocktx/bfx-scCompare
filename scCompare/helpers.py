@@ -415,7 +415,7 @@ def generate_bulk_sig(
     Returns:
         DataFrame of bulk signatures by cluster.
     """
-
+    
     unique_genes = list(
         adata.var["highly_variable"][adata.var["highly_variable"]].index
     )
