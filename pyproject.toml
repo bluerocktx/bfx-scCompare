@@ -3,7 +3,7 @@ build-backend = "hatchling.build"
 requires = ["hatchling>=1.8.0"]
 
 [project]
-name = "scCompare"
+name = "bfx-scCompare"
 description = "Compare 2 single-cell RNAseq datasets"
 version = "0.2.0"
 license = { text = "BSD-3" }
